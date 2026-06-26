@@ -674,7 +674,7 @@ function ScoreRing({ score, label }: { score: number; label: string }) {
           / 100
         </text>
       </svg>
-      <span className="mt-1 text-xs text-[color:var(--color-muted-foreground)]">Estimated match</span>
+      <span className="mt-1 text-xs text-[color:var(--color-muted-foreground)]">{label}</span>
     </div>
   );
 }
