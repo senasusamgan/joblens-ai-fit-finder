@@ -36,11 +36,33 @@ interface Analysis {
   disclaimer: string;
 }
 
-const verdictTone: Record<Verdict, { label: string; bg: string; ring: string }> = {
-  "Strong Fit": { label: "✓ Strong Fit", bg: "bg-[color:var(--color-success)]/15 text-[color:var(--color-success)]", ring: "ring-[color:var(--color-success)]/40" },
-  "Worth Applying": { label: "→ Worth Applying", bg: "bg-[color:var(--color-info)]/15 text-[color:var(--color-info)]", ring: "ring-[color:var(--color-info)]/40" },
-  "Stretch Opportunity": { label: "↗ Stretch Opportunity", bg: "bg-[color:var(--color-warning)]/20 text-[color:var(--color-warning-foreground)]", ring: "ring-[color:var(--color-warning)]/40" },
-  "Low Fit": { label: "✕ Low Fit", bg: "bg-[color:var(--color-danger)]/15 text-[color:var(--color-danger)]", ring: "ring-[color:var(--color-danger)]/40" },
+type Lang = "English" | "Turkish";
+
+const verdictTone: Record<Verdict, { icon: string; bg: string; ring: string }> = {
+  "Strong Fit": { icon: "✓", bg: "bg-[color:var(--color-success)]/15 text-[color:var(--color-success)]", ring: "ring-[color:var(--color-success)]/40" },
+  "Worth Applying": { icon: "→", bg: "bg-[color:var(--color-info)]/15 text-[color:var(--color-info)]", ring: "ring-[color:var(--color-info)]/40" },
+  "Stretch Opportunity": { icon: "↗", bg: "bg-[color:var(--color-warning)]/20 text-[color:var(--color-warning-foreground)]", ring: "ring-[color:var(--color-warning)]/40" },
+  "Low Fit": { icon: "✕", bg: "bg-[color:var(--color-danger)]/15 text-[color:var(--color-danger)]", ring: "ring-[color:var(--color-danger)]/40" },
+};
+
+const verdictLabel: Record<Lang, Record<Verdict, string>> = {
+  English: {
+    "Strong Fit": "Strong Fit",
+    "Worth Applying": "Worth Applying",
+    "Stretch Opportunity": "Stretch Opportunity",
+    "Low Fit": "Low Fit",
+  },
+  Turkish: {
+    "Strong Fit": "Güçlü Uyum",
+    "Worth Applying": "Başvurmaya Değer",
+    "Stretch Opportunity": "Zorlayıcı Fırsat",
+    "Low Fit": "Düşük Uyum",
+  },
+};
+
+const severityLabel: Record<Lang, Record<Severity, string>> = {
+  English: { Low: "Low", Medium: "Medium", High: "High" },
+  Turkish: { Low: "Düşük", Medium: "Orta", High: "Yüksek" },
 };
 
 const severityTone: Record<Severity, string> = {
@@ -48,6 +70,56 @@ const severityTone: Record<Severity, string> = {
   Medium: "bg-[color:var(--color-warning)]/20 text-[color:var(--color-warning-foreground)] border-[color:var(--color-warning)]/40",
   High: "bg-[color:var(--color-danger)]/15 text-[color:var(--color-danger)] border-[color:var(--color-danger)]/30",
 };
+
+const T = {
+  English: {
+    strongMatches: "Strong Matches",
+    partialMatches: "Partial Matches",
+    learnableGaps: "Learnable Gaps",
+    possibleBlockers: "Possible Blockers",
+    cvSuggestions: "CV Improvement Suggestions",
+    recruiterMessage: "Recruiter Message",
+    cvEvidence: "CV evidence",
+    remainingGap: "Remaining gap",
+    exampleRewrite: "Example rewrite",
+    estimatedMatch: "Estimated match",
+    estimatedMatchScore: "Estimated match score · explainable, not an official ATS result.",
+    copyMessage: "Copy Message",
+    copied: "✓ Copied",
+    copiedAnnounce: "Message copied to your clipboard.",
+    analyseAnother: "Analyse Another Application",
+    severitySuffix: "severity",
+    noStrong: "No clearly evidenced strong matches were found.",
+    noPartial: "No partial matches identified.",
+    noGaps: "No notable learnable gaps were identified.",
+    noBlockers: "No clear mandatory blockers were identified.",
+    noSuggestions: "No specific CV suggestions for this application.",
+  },
+  Turkish: {
+    strongMatches: "Güçlü Eşleşmeler",
+    partialMatches: "Kısmi Eşleşmeler",
+    learnableGaps: "Geliştirilebilir Eksikler",
+    possibleBlockers: "Olası Engeller",
+    cvSuggestions: "CV Geliştirme Önerileri",
+    recruiterMessage: "İşe Alım Uzmanına Mesaj",
+    cvEvidence: "CV kanıtı",
+    remainingGap: "Eksik kalan nokta",
+    exampleRewrite: "Örnek düzenleme",
+    estimatedMatch: "Tahmini uyum",
+    estimatedMatchScore: "Tahmini uyum puanı · açıklanabilir bir tahmindir, resmi bir ATS sonucu değildir.",
+    copyMessage: "Mesajı Kopyala",
+    copied: "✓ Kopyalandı",
+    copiedAnnounce: "Mesaj panoya kopyalandı.",
+    analyseAnother: "Başka Bir Başvuruyu Analiz Et",
+    severitySuffix: "önem",
+    noStrong: "CV'de açıkça kanıtlanmış güçlü eşleşme bulunamadı.",
+    noPartial: "Kısmi eşleşme bulunamadı.",
+    noGaps: "Belirgin bir geliştirilebilir eksiklik bulunmadı.",
+    noBlockers: "Net bir zorunlu engel bulunmadı.",
+    noSuggestions: "Bu başvuru için özel bir CV önerisi yok.",
+  },
+} as const;
+
 
 function Index() {
   const [jobTitle, setJobTitle] = useState("");
