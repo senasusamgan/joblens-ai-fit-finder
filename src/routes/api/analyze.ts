@@ -55,7 +55,7 @@ export const Route = createFileRoute("/api/analyze")({
         try {
           const body = await request.json();
           const parsed = RequestSchema.safeParse(body);
-          if (!parsed.success) {
+          if (!result.success) {
             return Response.json({ error: "Invalid input." }, { status: 400 });
           }
           const { jobTitle, companyName, cv, jobDescription, language } = parsed.data;
@@ -119,12 +119,12 @@ Analyze the fit honestly. Respond with ONLY a single valid JSON object matching 
           const start = cleaned.search(/[\{\[]/);
           const end = cleaned.lastIndexOf("}");
           const jsonStr = start !== -1 && end !== -1 ? cleaned.slice(start, end + 1) : cleaned;
-          const parsed = AnalysisSchema.safeParse(JSON.parse(jsonStr));
-          if (!parsed.success) {
-            console.error("schema parse failed", parsed.error);
+          const result = AnalysisSchema.safeParse(JSON.parse(jsonStr));
+          if (!result.success) {
+            console.error("schema parse failed", result.error);
             return Response.json({ error: "analysis_failed" }, { status: 500 });
           }
-          return Response.json(parsed.data);
+          return Response.json(result.data);
         } catch (err) {
           console.error("analyze error", err);
           const status =
