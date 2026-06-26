@@ -340,29 +340,29 @@ function Index() {
                   <span
                     className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ring-1 ${verdictTone[analysis.verdict].bg} ${verdictTone[analysis.verdict].ring}`}
                   >
-                    {verdictTone[analysis.verdict].label}
+                    {verdictTone[analysis.verdict].icon} {verdictLabel[analysisLang][analysis.verdict]}
                   </span>
                   <p className="mt-3 text-base text-[color:var(--color-surface-foreground)]">
                     {analysis.verdictExplanation}
                   </p>
                   <p className="mt-2 text-xs text-[color:var(--color-muted-foreground)]">
-                    Estimated match score · explainable, not an official ATS result.
+                    {t.estimatedMatchScore}
                   </p>
                 </div>
-                <ScoreRing score={analysis.matchScore} />
+                <ScoreRing score={analysis.matchScore} label={t.estimatedMatch} />
               </div>
             </div>
 
-            <ResultCard title="Strong Matches" accent="success" count={analysis.strongMatches.length}>
+            <ResultCard title={t.strongMatches} accent="success" count={analysis.strongMatches.length}>
               {analysis.strongMatches.length === 0 ? (
-                <Empty text="No clearly evidenced strong matches were found." />
+                <Empty text={t.noStrong} />
               ) : (
                 <ul className="space-y-4">
                   {analysis.strongMatches.map((m, i) => (
                     <li key={i} className="rounded-lg border border-[color:var(--color-border)] p-4">
                       <p className="font-medium">{m.requirement}</p>
                       <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
-                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">CV evidence: </span>
+                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">{t.cvEvidence}: </span>
                         {m.cvEvidence}
                       </p>
                       <p className="mt-1 text-sm">{m.explanation}</p>
@@ -372,20 +372,20 @@ function Index() {
               )}
             </ResultCard>
 
-            <ResultCard title="Partial Matches" accent="warning" count={(analysis.partialMatches ?? []).length}>
+            <ResultCard title={t.partialMatches} accent="warning" count={(analysis.partialMatches ?? []).length}>
               {(analysis.partialMatches ?? []).length === 0 ? (
-                <Empty text="No partial matches identified." />
+                <Empty text={t.noPartial} />
               ) : (
                 <ul className="space-y-4">
                   {analysis.partialMatches.map((p, i) => (
                     <li key={i} className="rounded-lg border border-[color:var(--color-border)] p-4">
                       <p className="font-medium">{p.requirement}</p>
                       <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
-                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">CV evidence: </span>
+                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">{t.cvEvidence}: </span>
                         {p.cvEvidence}
                       </p>
                       <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
-                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">Remaining gap: </span>
+                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">{t.remainingGap}: </span>
                         {p.remainingGap}
                       </p>
                       <p className="mt-1 text-sm">{p.explanation}</p>
@@ -395,9 +395,9 @@ function Index() {
               )}
             </ResultCard>
 
-            <ResultCard title="Learnable Gaps" accent="info" count={analysis.learnableGaps.length}>
+            <ResultCard title={t.learnableGaps} accent="info" count={analysis.learnableGaps.length}>
               {analysis.learnableGaps.length === 0 ? (
-                <Empty text="No notable learnable gaps were identified." />
+                <Empty text={t.noGaps} />
               ) : (
                 <ul className="space-y-4">
                   {analysis.learnableGaps.map((g, i) => (
@@ -415,9 +415,9 @@ function Index() {
               )}
             </ResultCard>
 
-            <ResultCard title="Possible Blockers" accent="danger" count={analysis.possibleBlockers.length}>
+            <ResultCard title={t.possibleBlockers} accent="danger" count={analysis.possibleBlockers.length}>
               {analysis.possibleBlockers.length === 0 ? (
-                <Empty text="No clear mandatory blockers were identified." />
+                <Empty text={t.noBlockers} />
               ) : (
                 <ul className="space-y-4">
                   {analysis.possibleBlockers.map((b, i) => (
@@ -426,9 +426,9 @@ function Index() {
                         <p className="font-medium">{b.requirement}</p>
                         <span
                           className={`text-xs px-2 py-0.5 rounded-full border ${severityTone[b.severity]}`}
-                          aria-label={`Severity ${b.severity}`}
+                          aria-label={`${severityLabel[analysisLang][b.severity]} ${t.severitySuffix}`}
                         >
-                          {b.severity} severity
+                          {severityLabel[analysisLang][b.severity]} {t.severitySuffix}
                         </span>
                       </div>
                       <p className="mt-1 text-sm">{b.reason}</p>
@@ -438,9 +438,9 @@ function Index() {
               )}
             </ResultCard>
 
-            <ResultCard title="CV Improvement Suggestions" accent="primary" count={analysis.cvSuggestions.length}>
+            <ResultCard title={t.cvSuggestions} accent="primary" count={analysis.cvSuggestions.length}>
               {analysis.cvSuggestions.length === 0 ? (
-                <Empty text="No specific CV suggestions for this application." />
+                <Empty text={t.noSuggestions} />
               ) : (
                 <ul className="space-y-4">
                   {analysis.cvSuggestions.map((s, i) => (
@@ -453,7 +453,7 @@ function Index() {
                       {s.example && (
                         <div className="mt-3 rounded-md bg-[color:var(--color-muted)] p-3 text-sm">
                           <span className="block text-xs font-semibold text-[color:var(--color-muted-foreground)] mb-1">
-                            Example rewrite
+                            {t.exampleRewrite}
                           </span>
                           {s.example}
                         </div>
@@ -464,7 +464,7 @@ function Index() {
               )}
             </ResultCard>
 
-            <ResultCard title="Recruiter Message" accent="accent">
+            <ResultCard title={t.recruiterMessage} accent="accent">
               <div className="rounded-lg bg-[color:var(--color-muted)] p-4 text-sm whitespace-pre-wrap">
                 {analysis.recruiterMessage}
               </div>
@@ -475,13 +475,14 @@ function Index() {
                   className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-[color:var(--color-primary-foreground)]"
                   style={{ background: "var(--gradient-hero)" }}
                 >
-                  {copied ? "✓ Copied" : "Copy Message"}
+                  {copied ? t.copied : t.copyMessage}
                 </button>
                 <span aria-live="polite" className="text-xs text-[color:var(--color-muted-foreground)]">
-                  {copied ? "Message copied to your clipboard." : ""}
+                  {copied ? t.copiedAnnounce : ""}
                 </span>
               </div>
             </ResultCard>
+
 
             <p className="text-xs text-white/55 text-center px-4">{analysis.disclaimer}</p>
 
