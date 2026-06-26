@@ -92,16 +92,39 @@ ${jobDescription}
 === CANDIDATE CV ===
 ${cv}
 
-Analyze the fit honestly. Follow the schema strictly.`;
+Analyze the fit honestly. Respond with ONLY a single valid JSON object matching this TypeScript type, no markdown, no code fences, no commentary:
 
-          const { object } = await generateObject({
+{
+  "verdict": "Strong Fit" | "Worth Applying" | "Stretch Opportunity" | "Low Fit",
+  "verdictExplanation": string,
+  "matchScore": number,
+  "strongMatches": { "requirement": string, "cvEvidence": string, "explanation": string }[],
+  "learnableGaps": { "skill": string, "importance": string, "suggestion": string }[],
+  "possibleBlockers": { "requirement": string, "reason": string, "severity": "Low" | "Medium" | "High" }[],
+  "cvSuggestions": { "section": string, "suggestion": string, "reason": string, "example": string }[],
+  "recruiterMessage": string,
+  "disclaimer": string
+}`;
+
+          const { text } = await generateText({
             model,
-            schema: AnalysisSchema,
             system,
             prompt,
           });
 
-          return Response.json(object);
+          const cleaned = text
+            .replace(/^```(?:json)?\s*/i, "")
+            .replace(/\s*```\s*$/i, "")
+            .trim();
+          const start = cleaned.search(/[\{\[]/);
+          const end = cleaned.lastIndexOf("}");
+          const jsonStr = start !== -1 && end !== -1 ? cleaned.slice(start, end + 1) : cleaned;
+          const parsed = AnalysisSchema.safeParse(JSON.parse(jsonStr));
+          if (!parsed.success) {
+            console.error("schema parse failed", parsed.error);
+            return Response.json({ error: "analysis_failed" }, { status: 500 });
+          }
+          return Response.json(parsed.data);
         } catch (err) {
           console.error("analyze error", err);
           const status =
