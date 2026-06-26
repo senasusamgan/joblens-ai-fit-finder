@@ -492,7 +492,7 @@ function Index() {
                 onClick={reset}
                 className="rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-medium text-white hover:bg-white/10 transition"
               >
-                Analyse Another Application
+                {t.analyseAnother}
               </button>
             </div>
           </section>
