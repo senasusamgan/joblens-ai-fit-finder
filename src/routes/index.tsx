@@ -160,6 +160,7 @@ function Index() {
       });
       if (!res.ok) throw new Error("failed");
       const data = (await res.json()) as Analysis;
+      setAnalysisLang(language);
       setAnalysis(data);
       setTimeout(() => {
         document.getElementById("results")?.scrollIntoView({ behavior: "smooth", block: "start" });
