@@ -36,11 +36,33 @@ interface Analysis {
   disclaimer: string;
 }
 
-const verdictTone: Record<Verdict, { label: string; bg: string; ring: string }> = {
-  "Strong Fit": { label: "✓ Strong Fit", bg: "bg-[color:var(--color-success)]/15 text-[color:var(--color-success)]", ring: "ring-[color:var(--color-success)]/40" },
-  "Worth Applying": { label: "→ Worth Applying", bg: "bg-[color:var(--color-info)]/15 text-[color:var(--color-info)]", ring: "ring-[color:var(--color-info)]/40" },
-  "Stretch Opportunity": { label: "↗ Stretch Opportunity", bg: "bg-[color:var(--color-warning)]/20 text-[color:var(--color-warning-foreground)]", ring: "ring-[color:var(--color-warning)]/40" },
-  "Low Fit": { label: "✕ Low Fit", bg: "bg-[color:var(--color-danger)]/15 text-[color:var(--color-danger)]", ring: "ring-[color:var(--color-danger)]/40" },
+type Lang = "English" | "Turkish";
+
+const verdictTone: Record<Verdict, { icon: string; bg: string; ring: string }> = {
+  "Strong Fit": { icon: "✓", bg: "bg-[color:var(--color-success)]/15 text-[color:var(--color-success)]", ring: "ring-[color:var(--color-success)]/40" },
+  "Worth Applying": { icon: "→", bg: "bg-[color:var(--color-info)]/15 text-[color:var(--color-info)]", ring: "ring-[color:var(--color-info)]/40" },
+  "Stretch Opportunity": { icon: "↗", bg: "bg-[color:var(--color-warning)]/20 text-[color:var(--color-warning-foreground)]", ring: "ring-[color:var(--color-warning)]/40" },
+  "Low Fit": { icon: "✕", bg: "bg-[color:var(--color-danger)]/15 text-[color:var(--color-danger)]", ring: "ring-[color:var(--color-danger)]/40" },
+};
+
+const verdictLabel: Record<Lang, Record<Verdict, string>> = {
+  English: {
+    "Strong Fit": "Strong Fit",
+    "Worth Applying": "Worth Applying",
+    "Stretch Opportunity": "Stretch Opportunity",
+    "Low Fit": "Low Fit",
+  },
+  Turkish: {
+    "Strong Fit": "Güçlü Uyum",
+    "Worth Applying": "Başvurmaya Değer",
+    "Stretch Opportunity": "Zorlayıcı Fırsat",
+    "Low Fit": "Düşük Uyum",
+  },
+};
+
+const severityLabel: Record<Lang, Record<Severity, string>> = {
+  English: { Low: "Low", Medium: "Medium", High: "High" },
+  Turkish: { Low: "Düşük", Medium: "Orta", High: "Yüksek" },
 };
 
 const severityTone: Record<Severity, string> = {
@@ -49,17 +71,69 @@ const severityTone: Record<Severity, string> = {
   High: "bg-[color:var(--color-danger)]/15 text-[color:var(--color-danger)] border-[color:var(--color-danger)]/30",
 };
 
+const T = {
+  English: {
+    strongMatches: "Strong Matches",
+    partialMatches: "Partial Matches",
+    learnableGaps: "Learnable Gaps",
+    possibleBlockers: "Possible Blockers",
+    cvSuggestions: "CV Improvement Suggestions",
+    recruiterMessage: "Recruiter Message",
+    cvEvidence: "CV evidence",
+    remainingGap: "Remaining gap",
+    exampleRewrite: "Example rewrite",
+    estimatedMatch: "Estimated match",
+    estimatedMatchScore: "Estimated match score · explainable, not an official ATS result.",
+    copyMessage: "Copy Message",
+    copied: "✓ Copied",
+    copiedAnnounce: "Message copied to your clipboard.",
+    analyseAnother: "Analyse Another Application",
+    severitySuffix: "severity",
+    noStrong: "No clearly evidenced strong matches were found.",
+    noPartial: "No partial matches identified.",
+    noGaps: "No notable learnable gaps were identified.",
+    noBlockers: "No clear mandatory blockers were identified.",
+    noSuggestions: "No specific CV suggestions for this application.",
+  },
+  Turkish: {
+    strongMatches: "Güçlü Eşleşmeler",
+    partialMatches: "Kısmi Eşleşmeler",
+    learnableGaps: "Geliştirilebilir Eksikler",
+    possibleBlockers: "Olası Engeller",
+    cvSuggestions: "CV Geliştirme Önerileri",
+    recruiterMessage: "İşe Alım Uzmanına Mesaj",
+    cvEvidence: "CV kanıtı",
+    remainingGap: "Eksik kalan nokta",
+    exampleRewrite: "Örnek düzenleme",
+    estimatedMatch: "Tahmini uyum",
+    estimatedMatchScore: "Tahmini uyum puanı · açıklanabilir bir tahmindir, resmi bir ATS sonucu değildir.",
+    copyMessage: "Mesajı Kopyala",
+    copied: "✓ Kopyalandı",
+    copiedAnnounce: "Mesaj panoya kopyalandı.",
+    analyseAnother: "Başka Bir Başvuruyu Analiz Et",
+    severitySuffix: "önem",
+    noStrong: "CV'de açıkça kanıtlanmış güçlü eşleşme bulunamadı.",
+    noPartial: "Kısmi eşleşme bulunamadı.",
+    noGaps: "Belirgin bir geliştirilebilir eksiklik bulunmadı.",
+    noBlockers: "Net bir zorunlu engel bulunmadı.",
+    noSuggestions: "Bu başvuru için özel bir CV önerisi yok.",
+  },
+} as const;
+
+
 function Index() {
   const [jobTitle, setJobTitle] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [cv, setCv] = useState("");
   const [jobDescription, setJobDescription] = useState("");
-  const [language, setLanguage] = useState<"English" | "Turkish">("English");
+  const [language, setLanguage] = useState<Lang>("English");
+  const [analysisLang, setAnalysisLang] = useState<Lang>("English");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [copied, setCopied] = useState(false);
+  const t = T[analysisLang];
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -86,6 +160,7 @@ function Index() {
       });
       if (!res.ok) throw new Error("failed");
       const data = (await res.json()) as Analysis;
+      setAnalysisLang(language);
       setAnalysis(data);
       setTimeout(() => {
         document.getElementById("results")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -265,29 +340,29 @@ function Index() {
                   <span
                     className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ring-1 ${verdictTone[analysis.verdict].bg} ${verdictTone[analysis.verdict].ring}`}
                   >
-                    {verdictTone[analysis.verdict].label}
+                    {verdictTone[analysis.verdict].icon} {verdictLabel[analysisLang][analysis.verdict]}
                   </span>
                   <p className="mt-3 text-base text-[color:var(--color-surface-foreground)]">
                     {analysis.verdictExplanation}
                   </p>
                   <p className="mt-2 text-xs text-[color:var(--color-muted-foreground)]">
-                    Estimated match score · explainable, not an official ATS result.
+                    {t.estimatedMatchScore}
                   </p>
                 </div>
-                <ScoreRing score={analysis.matchScore} />
+                <ScoreRing score={analysis.matchScore} label={t.estimatedMatch} />
               </div>
             </div>
 
-            <ResultCard title="Strong Matches" accent="success" count={analysis.strongMatches.length}>
+            <ResultCard title={t.strongMatches} accent="success" count={analysis.strongMatches.length}>
               {analysis.strongMatches.length === 0 ? (
-                <Empty text="No clearly evidenced strong matches were found." />
+                <Empty text={t.noStrong} />
               ) : (
                 <ul className="space-y-4">
                   {analysis.strongMatches.map((m, i) => (
                     <li key={i} className="rounded-lg border border-[color:var(--color-border)] p-4">
                       <p className="font-medium">{m.requirement}</p>
                       <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
-                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">CV evidence: </span>
+                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">{t.cvEvidence}: </span>
                         {m.cvEvidence}
                       </p>
                       <p className="mt-1 text-sm">{m.explanation}</p>
@@ -297,20 +372,20 @@ function Index() {
               )}
             </ResultCard>
 
-            <ResultCard title="Partial Matches" accent="warning" count={(analysis.partialMatches ?? []).length}>
+            <ResultCard title={t.partialMatches} accent="warning" count={(analysis.partialMatches ?? []).length}>
               {(analysis.partialMatches ?? []).length === 0 ? (
-                <Empty text="No partial matches identified." />
+                <Empty text={t.noPartial} />
               ) : (
                 <ul className="space-y-4">
                   {analysis.partialMatches.map((p, i) => (
                     <li key={i} className="rounded-lg border border-[color:var(--color-border)] p-4">
                       <p className="font-medium">{p.requirement}</p>
                       <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
-                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">CV evidence: </span>
+                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">{t.cvEvidence}: </span>
                         {p.cvEvidence}
                       </p>
                       <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
-                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">Remaining gap: </span>
+                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">{t.remainingGap}: </span>
                         {p.remainingGap}
                       </p>
                       <p className="mt-1 text-sm">{p.explanation}</p>
@@ -320,9 +395,9 @@ function Index() {
               )}
             </ResultCard>
 
-            <ResultCard title="Learnable Gaps" accent="info" count={analysis.learnableGaps.length}>
+            <ResultCard title={t.learnableGaps} accent="info" count={analysis.learnableGaps.length}>
               {analysis.learnableGaps.length === 0 ? (
-                <Empty text="No notable learnable gaps were identified." />
+                <Empty text={t.noGaps} />
               ) : (
                 <ul className="space-y-4">
                   {analysis.learnableGaps.map((g, i) => (
@@ -340,9 +415,9 @@ function Index() {
               )}
             </ResultCard>
 
-            <ResultCard title="Possible Blockers" accent="danger" count={analysis.possibleBlockers.length}>
+            <ResultCard title={t.possibleBlockers} accent="danger" count={analysis.possibleBlockers.length}>
               {analysis.possibleBlockers.length === 0 ? (
-                <Empty text="No clear mandatory blockers were identified." />
+                <Empty text={t.noBlockers} />
               ) : (
                 <ul className="space-y-4">
                   {analysis.possibleBlockers.map((b, i) => (
@@ -351,9 +426,9 @@ function Index() {
                         <p className="font-medium">{b.requirement}</p>
                         <span
                           className={`text-xs px-2 py-0.5 rounded-full border ${severityTone[b.severity]}`}
-                          aria-label={`Severity ${b.severity}`}
+                          aria-label={`${severityLabel[analysisLang][b.severity]} ${t.severitySuffix}`}
                         >
-                          {b.severity} severity
+                          {severityLabel[analysisLang][b.severity]} {t.severitySuffix}
                         </span>
                       </div>
                       <p className="mt-1 text-sm">{b.reason}</p>
@@ -363,9 +438,9 @@ function Index() {
               )}
             </ResultCard>
 
-            <ResultCard title="CV Improvement Suggestions" accent="primary" count={analysis.cvSuggestions.length}>
+            <ResultCard title={t.cvSuggestions} accent="primary" count={analysis.cvSuggestions.length}>
               {analysis.cvSuggestions.length === 0 ? (
-                <Empty text="No specific CV suggestions for this application." />
+                <Empty text={t.noSuggestions} />
               ) : (
                 <ul className="space-y-4">
                   {analysis.cvSuggestions.map((s, i) => (
@@ -378,7 +453,7 @@ function Index() {
                       {s.example && (
                         <div className="mt-3 rounded-md bg-[color:var(--color-muted)] p-3 text-sm">
                           <span className="block text-xs font-semibold text-[color:var(--color-muted-foreground)] mb-1">
-                            Example rewrite
+                            {t.exampleRewrite}
                           </span>
                           {s.example}
                         </div>
@@ -389,7 +464,7 @@ function Index() {
               )}
             </ResultCard>
 
-            <ResultCard title="Recruiter Message" accent="accent">
+            <ResultCard title={t.recruiterMessage} accent="accent">
               <div className="rounded-lg bg-[color:var(--color-muted)] p-4 text-sm whitespace-pre-wrap">
                 {analysis.recruiterMessage}
               </div>
@@ -400,13 +475,14 @@ function Index() {
                   className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-[color:var(--color-primary-foreground)]"
                   style={{ background: "var(--gradient-hero)" }}
                 >
-                  {copied ? "✓ Copied" : "Copy Message"}
+                  {copied ? t.copied : t.copyMessage}
                 </button>
                 <span aria-live="polite" className="text-xs text-[color:var(--color-muted-foreground)]">
-                  {copied ? "Message copied to your clipboard." : ""}
+                  {copied ? t.copiedAnnounce : ""}
                 </span>
               </div>
             </ResultCard>
+
 
             <p className="text-xs text-white/55 text-center px-4">{analysis.disclaimer}</p>
 
@@ -416,7 +492,7 @@ function Index() {
                 onClick={reset}
                 className="rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-medium text-white hover:bg-white/10 transition"
               >
-                Analyse Another Application
+                {t.analyseAnother}
               </button>
             </div>
           </section>
@@ -548,7 +624,7 @@ function Spinner() {
   );
 }
 
-function ScoreRing({ score }: { score: number }) {
+function ScoreRing({ score, label }: { score: number; label: string }) {
   const clamped = Math.max(0, Math.min(100, score));
   const r = 46;
   const c = 2 * Math.PI * r;
@@ -598,7 +674,7 @@ function ScoreRing({ score }: { score: number }) {
           / 100
         </text>
       </svg>
-      <span className="mt-1 text-xs text-[color:var(--color-muted-foreground)]">Estimated match</span>
+      <span className="mt-1 text-xs text-[color:var(--color-muted-foreground)]">{label}</span>
     </div>
   );
 }

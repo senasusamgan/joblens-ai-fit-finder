@@ -113,26 +113,36 @@ GROUNDING — ABSOLUTE RULES:
 - Graduating from a university in a city does NOT prove the candidate currently lives there. Studying in a country does NOT imply work authorization.
 - If a piece of information needed to evaluate a requirement is not in the CV, treat it as unverified. Use the exact phrase ${notStated} (in the output language) where appropriate, and add the requirement to possibleBlockers with reason explaining it is unverified (not a confirmed absence).
 - Before classifying anything as a learnable gap, search the ENTIRE CV for related evidence (projects, coursework, personal projects, tools, technologies). If related evidence exists but is in a different environment / stack / scale, put it in partialMatches with cvEvidence (quote or paraphrase from CV) and remainingGap (what is still missing). NEVER describe an existing skill as absent.
+- Do NOT infer soft activities like "debugging", "code review", "testing", "team leadership", "mentoring", "agile", "scrum" just because the candidate built something complex. They must be explicitly mentioned in the CV. If debugging is requested by the JD but not in the CV, do not claim it as evidence. You may add a partial match noting related development experience and explicitly state that the activity itself is not directly mentioned in the CV.
 - Nice-to-have / preferred requirements must influence matchScore LESS than mandatory / required ones.
 
 CATEGORIES:
 - strongMatches: requirement is clearly supported by explicit CV evidence.
-- partialMatches: related CV evidence exists but does not fully meet the requirement (different stack, smaller scale, academic vs professional, etc.).
+- partialMatches: related CV evidence exists but does not fully meet the requirement (different stack, smaller scale, academic vs professional, related but not the same activity, etc.).
 - learnableGaps: no supporting CV evidence AND the skill is reasonably learnable.
 - possibleBlockers: mandatory requirement that is clearly unmet OR cannot be verified from the CV (location, work authorization, mandatory degree/certification, minimum years of experience, required language level). For unverifiable ones, the reason must say it is unverified, not that the candidate fails it.
 
 CV SUGGESTIONS:
-- Never invent dates, company names, locations, numbers, achievements, or metrics. When information is missing, use placeholders in the example field: [Company Name], [Accurate dates], [Verified result], [Location], [Number].
-- Only suggest adding a city/location to the CV if that location is already present in the CV.
+- Never invent dates, company names, locations, numbers, achievements, or metrics. When information is missing, use placeholders in the example field: [Company Name] / [Şirket Adı], [Accurate dates] / [Doğru tarihler], [Verified result] / [Doğrulanmış sonuç], [Location] / [Mevcut şehir], [Number] / [Sayı].
+- Only suggest adding a city/location to the CV if that location is already present in the CV. If the CV does not state any location, use a placeholder like [Mevcut şehir] / [Current city] in the example — never write a real city such as "Istanbul" / "İstanbul, Türkiye".
 
 RECRUITER MESSAGE:
-- Suitable for LinkedIn / short direct message — NOT a cover letter.
+- Style: short LinkedIn-style direct message or connection note. NOT a cover letter and NOT an email body.
 - 500 characters or fewer including spaces. Be concise.
 - Written in the selected output language.
 - Mention the role (${jobTitle})${companyName ? ` and the company (${companyName})` : ""}.
 - Mention only one or two highly relevant facts that are explicitly in the CV.
-- Sound natural and human. Avoid "Dear Hiring Team" and long formal openings.
+- Briefly introduce the applicant, mention the role/company, mention one or two supported qualifications, and end by asking to connect or learn more about the role.
+- Sound natural and human. Avoid "Dear Hiring Team", "Sayın Yetkili", "Merhaba Sayın..." and long formal openings.
+- ABSOLUTELY DO NOT mention or imply any attachment. NEVER write: "CV'mi ekte bulabilirsiniz", "ekte sunulmuştur", "ilişikte", "Please find my CV attached", "attached resume", or any similar attachment phrasing. The product does not attach a CV.
 - Never invent information.
+
+TURKISH STYLE (only when output language is Turkish):
+- Write natural, professional Turkish. Do NOT use anglicized words when a normal Turkish word exists.
+- Forbidden: "Skiller", "skill bölümü", "experience bölümü". Use "Beceriler bölümü" or "Yetenekler bölümü", "Deneyim bölümü".
+- Keep product / technical names unchanged: Unreal Engine, C++, Blueprint, Git, DirectX, shader, GPU, API, CV.
+- Map importance/severity labels to natural Turkish in the text: Required → Zorunlu, Nice to have → Tercih sebebi, Low → Düşük, Medium → Orta, High → Yüksek. (The schema severity enum still stays in English: "Low" | "Medium" | "High".)
+- Every sentence should read as natural professional Turkish.
 
 VERDICT, SCORE, DISCLAIMER:
 - matchScore is an explainable estimate, NOT an ATS score or hiring guarantee.
