@@ -493,7 +493,7 @@ function ResultCard({
   children,
 }: {
   title: string;
-  accent: "success" | "info" | "danger" | "primary" | "accent";
+  accent: "success" | "info" | "danger" | "primary" | "accent" | "warning";
   count?: number;
   children: React.ReactNode;
 }) {
@@ -503,6 +503,7 @@ function ResultCard({
     danger: "bg-[color:var(--color-danger)]",
     primary: "bg-[color:var(--color-primary)]",
     accent: "bg-[color:var(--color-accent)]",
+    warning: "bg-[color:var(--color-warning)]",
   } as const;
   return (
     <div className="card-surface p-6 md:p-8">
