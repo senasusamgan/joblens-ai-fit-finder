@@ -126,12 +126,14 @@ function Index() {
   const [companyName, setCompanyName] = useState("");
   const [cv, setCv] = useState("");
   const [jobDescription, setJobDescription] = useState("");
-  const [language, setLanguage] = useState<"English" | "Turkish">("English");
+  const [language, setLanguage] = useState<Lang>("English");
+  const [analysisLang, setAnalysisLang] = useState<Lang>("English");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [copied, setCopied] = useState(false);
+  const t = T[analysisLang];
 
   const validate = () => {
     const e: Record<string, string> = {};
