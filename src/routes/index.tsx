@@ -28,6 +28,7 @@ interface Analysis {
   verdictExplanation: string;
   matchScore: number;
   strongMatches: { requirement: string; cvEvidence: string; explanation: string }[];
+  partialMatches: { requirement: string; cvEvidence: string; remainingGap: string; explanation: string }[];
   learnableGaps: { skill: string; importance: string; suggestion: string }[];
   possibleBlockers: { requirement: string; reason: string; severity: Severity }[];
   cvSuggestions: { section: string; suggestion: string; reason: string; example: string }[];
@@ -296,6 +297,29 @@ function Index() {
               )}
             </ResultCard>
 
+            <ResultCard title="Partial Matches" accent="warning" count={(analysis.partialMatches ?? []).length}>
+              {(analysis.partialMatches ?? []).length === 0 ? (
+                <Empty text="No partial matches identified." />
+              ) : (
+                <ul className="space-y-4">
+                  {analysis.partialMatches.map((p, i) => (
+                    <li key={i} className="rounded-lg border border-[color:var(--color-border)] p-4">
+                      <p className="font-medium">{p.requirement}</p>
+                      <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
+                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">CV evidence: </span>
+                        {p.cvEvidence}
+                      </p>
+                      <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
+                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">Remaining gap: </span>
+                        {p.remainingGap}
+                      </p>
+                      <p className="mt-1 text-sm">{p.explanation}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </ResultCard>
+
             <ResultCard title="Learnable Gaps" accent="info" count={analysis.learnableGaps.length}>
               {analysis.learnableGaps.length === 0 ? (
                 <Empty text="No notable learnable gaps were identified." />
@@ -469,7 +493,7 @@ function ResultCard({
   children,
 }: {
   title: string;
-  accent: "success" | "info" | "danger" | "primary" | "accent";
+  accent: "success" | "info" | "danger" | "primary" | "accent" | "warning";
   count?: number;
   children: React.ReactNode;
 }) {
@@ -479,6 +503,7 @@ function ResultCard({
     danger: "bg-[color:var(--color-danger)]",
     primary: "bg-[color:var(--color-primary)]",
     accent: "bg-[color:var(--color-accent)]",
+    warning: "bg-[color:var(--color-warning)]",
   } as const;
   return (
     <div className="card-surface p-6 md:p-8">
