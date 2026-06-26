@@ -297,6 +297,29 @@ function Index() {
               )}
             </ResultCard>
 
+            <ResultCard title="Partial Matches" accent="warning" count={(analysis.partialMatches ?? []).length}>
+              {(analysis.partialMatches ?? []).length === 0 ? (
+                <Empty text="No partial matches identified." />
+              ) : (
+                <ul className="space-y-4">
+                  {analysis.partialMatches.map((p, i) => (
+                    <li key={i} className="rounded-lg border border-[color:var(--color-border)] p-4">
+                      <p className="font-medium">{p.requirement}</p>
+                      <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
+                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">CV evidence: </span>
+                        {p.cvEvidence}
+                      </p>
+                      <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
+                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">Remaining gap: </span>
+                        {p.remainingGap}
+                      </p>
+                      <p className="mt-1 text-sm">{p.explanation}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </ResultCard>
+
             <ResultCard title="Learnable Gaps" accent="info" count={analysis.learnableGaps.length}>
               {analysis.learnableGaps.length === 0 ? (
                 <Empty text="No notable learnable gaps were identified." />
