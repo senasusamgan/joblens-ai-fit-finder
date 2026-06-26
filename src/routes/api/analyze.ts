@@ -55,7 +55,7 @@ export const Route = createFileRoute("/api/analyze")({
         try {
           const body = await request.json();
           const parsed = RequestSchema.safeParse(body);
-          if (!result.success) {
+          if (!parsed.success) {
             return Response.json({ error: "Invalid input." }, { status: 400 });
           }
           const { jobTitle, companyName, cv, jobDescription, language } = parsed.data;
