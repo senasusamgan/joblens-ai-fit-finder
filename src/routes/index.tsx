@@ -28,6 +28,7 @@ interface Analysis {
   verdictExplanation: string;
   matchScore: number;
   strongMatches: { requirement: string; cvEvidence: string; explanation: string }[];
+  partialMatches: { requirement: string; cvEvidence: string; remainingGap: string; explanation: string }[];
   learnableGaps: { skill: string; importance: string; suggestion: string }[];
   possibleBlockers: { requirement: string; reason: string; severity: Severity }[];
   cvSuggestions: { section: string; suggestion: string; reason: string; example: string }[];
