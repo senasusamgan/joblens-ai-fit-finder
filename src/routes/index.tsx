@@ -624,7 +624,7 @@ function Spinner() {
   );
 }
 
-function ScoreRing({ score }: { score: number }) {
+function ScoreRing({ score, label }: { score: number; label: string }) {
   const clamped = Math.max(0, Math.min(100, score));
   const r = 46;
   const c = 2 * Math.PI * r;
