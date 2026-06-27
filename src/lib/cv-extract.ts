@@ -43,7 +43,6 @@ async function extractDocx(file: File): Promise<string> {
 async function extractPdf(file: File): Promise<string> {
   // @ts-expect-error - pdfjs-dist ships its own types differently
   const pdfjs: any = await import("pdfjs-dist/build/pdf.mjs");
-  // @ts-expect-error - vite ?url query has no types
   const workerUrl = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default as string;
   if (pdfjs.GlobalWorkerOptions) {
     pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
