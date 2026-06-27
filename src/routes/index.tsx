@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { extractCvText, CvExtractError, MAX_CV_BYTES } from "@/lib/cv-extract";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -133,19 +134,75 @@ function Index() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // CV input mode
+  const [cvMode, setCvMode] = useState<"paste" | "upload">("paste");
+  const [cvFileName, setCvFileName] = useState<string | null>(null);
+  const [cvFileText, setCvFileText] = useState<string>("");
+  const [cvFileError, setCvFileError] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const t = T[analysisLang];
+
+  const activeCv = cvMode === "upload" ? cvFileText : cv;
 
   const validate = () => {
     const e: Record<string, string> = {};
     if (!jobTitle.trim()) e.jobTitle = "Please enter the job title.";
-    if (!cv.trim()) e.cv = "Please paste your CV.";
-    else if (cv.trim().length < 150) e.cv = "Your CV looks too short. Please paste the full text (at least 150 characters).";
+    if (cvMode === "paste") {
+      if (!cv.trim()) e.cv = "Please paste your CV.";
+      else if (cv.trim().length < 150)
+        e.cv = "Your CV looks too short. Please paste the full text (at least 150 characters).";
+    } else {
+      if (!cvFileText.trim())
+        e.cv = "Please upload your CV file.";
+      else if (cvFileText.trim().length < 150)
+        e.cv = "We could only read a small amount of text from this file. Please try another file or paste the CV text manually.";
+    }
     if (!jobDescription.trim()) e.jobDescription = "Please paste the job description.";
     else if (jobDescription.trim().length < 150)
       e.jobDescription = "The job description looks too short. Please paste the complete posting (at least 150 characters).";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
+
+  const handleFile = async (file: File | undefined | null) => {
+    if (!file) return;
+    setCvFileError(null);
+    setCvFileText("");
+    setCvFileName(file.name);
+    setPreviewOpen(false);
+    setExtracting(true);
+    try {
+      const text = await extractCvText(file);
+      setCvFileText(text);
+      setErrors((prev) => {
+        const { cv: _omit, ...rest } = prev;
+        return rest;
+      });
+    } catch (err) {
+      const msg =
+        err instanceof CvExtractError
+          ? err.message
+          : "We couldn’t read this CV. Please try another file or paste the CV text manually.";
+      setCvFileError(msg);
+      setCvFileText("");
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  const clearFile = () => {
+    setCvFileName(null);
+    setCvFileText("");
+    setCvFileError(null);
+    setPreviewOpen(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
 
   const submit = async () => {
     if (!validate()) return;
@@ -156,7 +213,7 @@ function Index() {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobTitle, companyName, cv, jobDescription, language }),
+        body: JSON.stringify({ jobTitle, companyName, cv: activeCv, jobDescription, language }),
       });
       if (!res.ok) throw new Error("failed");
       const data = (await res.json()) as Analysis;
@@ -255,15 +312,182 @@ function Index() {
                 </div>
 
                 <Field id="cv" label="CV" required error={errors.cv}>
-                  <textarea
-                    id="cv"
-                    value={cv}
-                    onChange={(e) => setCv(e.target.value)}
-                    rows={10}
-                    placeholder="Paste the full plain text of your CV here — education, experience, projects, skills, languages."
-                    className="input min-h-[200px] resize-y"
-                    aria-invalid={!!errors.cv}
-                  />
+                  <div
+                    role="tablist"
+                    aria-label="CV input method"
+                    className="inline-flex rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-muted)] p-1 mb-3"
+                  >
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={cvMode === "paste"}
+                      onClick={() => setCvMode("paste")}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-md transition ${
+                        cvMode === "paste"
+                          ? "bg-white text-[color:var(--color-surface-foreground)] shadow-sm"
+                          : "text-[color:var(--color-muted-foreground)]"
+                      }`}
+                    >
+                      Paste CV Text
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={cvMode === "upload"}
+                      onClick={() => setCvMode("upload")}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-md transition ${
+                        cvMode === "upload"
+                          ? "bg-white text-[color:var(--color-surface-foreground)] shadow-sm"
+                          : "text-[color:var(--color-muted-foreground)]"
+                      }`}
+                    >
+                      Upload CV File
+                    </button>
+                  </div>
+
+                  {cvMode === "paste" ? (
+                    <textarea
+                      id="cv"
+                      value={cv}
+                      onChange={(e) => setCv(e.target.value)}
+                      rows={10}
+                      placeholder="Paste the full plain text of your CV here — education, experience, projects, skills, languages."
+                      className="input min-h-[200px] resize-y"
+                      aria-invalid={!!errors.cv}
+                    />
+                  ) : (
+                    <div>
+                      {!cvFileName ? (
+                        <div
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            setDragOver(true);
+                          }}
+                          onDragLeave={() => setDragOver(false)}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            setDragOver(false);
+                            handleFile(e.dataTransfer.files?.[0]);
+                          }}
+                          onClick={() => fileInputRef.current?.click()}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              fileInputRef.current?.click();
+                            }
+                          }}
+                          role="button"
+                          tabIndex={0}
+                          aria-label="Upload CV file. Accepted formats: PDF, DOCX, TXT. Maximum 5 megabytes."
+                          className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-8 text-center cursor-pointer transition ${
+                            dragOver
+                              ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)]/5"
+                              : "border-[color:var(--color-border)] bg-white"
+                          }`}
+                        >
+                          <svg className="h-8 w-8 text-[color:var(--color-muted-foreground)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                            <path d="M12 16V4m0 0l-4 4m4-4l4 4" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          <p className="text-sm font-medium text-[color:var(--color-surface-foreground)]">
+                            Drag &amp; drop your CV here, or <span className="text-[color:var(--color-primary)] underline">browse</span>
+                          </p>
+                          <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                            Accepted formats: PDF, DOCX, TXT · Max 5 MB
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-[color:var(--color-border)] bg-white p-4">
+                          <div className="flex items-start justify-between gap-3 flex-wrap">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {extracting ? (
+                                <Spinner />
+                              ) : cvFileError ? (
+                                <span className="h-2.5 w-2.5 rounded-full bg-[color:var(--color-danger)]" aria-hidden />
+                              ) : (
+                                <span
+                                  className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[color:var(--color-success)]/15 text-[color:var(--color-success)] text-xs font-bold"
+                                  aria-hidden
+                                >
+                                  ✓
+                                </span>
+                              )}
+                              <span className="text-sm font-medium truncate text-[color:var(--color-surface-foreground)]">
+                                {cvFileName}
+                              </span>
+                              <span className="sr-only" aria-live="polite">
+                                {extracting
+                                  ? "Reading your CV"
+                                  : cvFileError
+                                    ? cvFileError
+                                    : `CV extracted successfully, ${cvFileText.length} characters.`}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                className="text-xs font-medium text-[color:var(--color-primary)] hover:underline"
+                                disabled={extracting}
+                              >
+                                Replace File
+                              </button>
+                              <button
+                                type="button"
+                                onClick={clearFile}
+                                className="text-xs font-medium text-[color:var(--color-muted-foreground)] hover:underline"
+                                disabled={extracting}
+                              >
+                                Remove File
+                              </button>
+                            </div>
+                          </div>
+
+                          {extracting && (
+                            <p className="mt-2 text-xs text-[color:var(--color-muted-foreground)]">
+                              Reading your CV...
+                            </p>
+                          )}
+
+                          {cvFileError && (
+                            <p role="alert" className="mt-2 text-sm text-[color:var(--color-danger)]">
+                              {cvFileError}
+                            </p>
+                          )}
+
+                          {!extracting && !cvFileError && cvFileText && (
+                            <details
+                              className="mt-3 rounded-lg bg-[color:var(--color-muted)] p-3"
+                              open={previewOpen}
+                              onToggle={(e) => setPreviewOpen((e.target as HTMLDetailsElement).open)}
+                            >
+                              <summary className="cursor-pointer text-xs font-semibold text-[color:var(--color-surface-foreground)]">
+                                Extracted CV Text ({cvFileText.length.toLocaleString()} chars)
+                              </summary>
+                              <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap text-xs text-[color:var(--color-surface-foreground)]">
+                                {cvFileText}
+                              </pre>
+                            </details>
+                          )}
+                        </div>
+                      )}
+
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                        className="sr-only"
+                        aria-label="CV file"
+                        onChange={(e) => {
+                          handleFile(e.target.files?.[0]);
+                        }}
+                      />
+
+                      <p className="mt-2 text-xs text-[color:var(--color-muted-foreground)]">
+                        Your file is used only to generate this analysis. Avoid uploading unnecessary sensitive personal information. Max file size {Math.round(MAX_CV_BYTES / 1024 / 1024)} MB.
+                      </p>
+                    </div>
+                  )}
                 </Field>
 
                 <Field id="jd" label="Job Description" required error={errors.jobDescription}>
@@ -293,7 +517,7 @@ function Index() {
                 <div className="pt-2">
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || extracting}
                     className="w-full md:w-auto inline-flex items-center justify-center gap-2 rounded-xl px-7 py-3.5 font-medium text-[color:var(--color-primary-foreground)] shadow-[var(--shadow-soft)] transition disabled:opacity-60 disabled:cursor-not-allowed"
                     style={{ background: "var(--gradient-hero)" }}
                   >
