@@ -517,7 +517,7 @@ function Index() {
                 <div className="pt-2">
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || extracting}
                     className="w-full md:w-auto inline-flex items-center justify-center gap-2 rounded-xl px-7 py-3.5 font-medium text-[color:var(--color-primary-foreground)] shadow-[var(--shadow-soft)] transition disabled:opacity-60 disabled:cursor-not-allowed"
                     style={{ background: "var(--gradient-hero)" }}
                   >
