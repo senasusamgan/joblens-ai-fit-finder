@@ -312,15 +312,182 @@ function Index() {
                 </div>
 
                 <Field id="cv" label="CV" required error={errors.cv}>
-                  <textarea
-                    id="cv"
-                    value={cv}
-                    onChange={(e) => setCv(e.target.value)}
-                    rows={10}
-                    placeholder="Paste the full plain text of your CV here — education, experience, projects, skills, languages."
-                    className="input min-h-[200px] resize-y"
-                    aria-invalid={!!errors.cv}
-                  />
+                  <div
+                    role="tablist"
+                    aria-label="CV input method"
+                    className="inline-flex rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-muted)] p-1 mb-3"
+                  >
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={cvMode === "paste"}
+                      onClick={() => setCvMode("paste")}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-md transition ${
+                        cvMode === "paste"
+                          ? "bg-white text-[color:var(--color-surface-foreground)] shadow-sm"
+                          : "text-[color:var(--color-muted-foreground)]"
+                      }`}
+                    >
+                      Paste CV Text
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={cvMode === "upload"}
+                      onClick={() => setCvMode("upload")}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-md transition ${
+                        cvMode === "upload"
+                          ? "bg-white text-[color:var(--color-surface-foreground)] shadow-sm"
+                          : "text-[color:var(--color-muted-foreground)]"
+                      }`}
+                    >
+                      Upload CV File
+                    </button>
+                  </div>
+
+                  {cvMode === "paste" ? (
+                    <textarea
+                      id="cv"
+                      value={cv}
+                      onChange={(e) => setCv(e.target.value)}
+                      rows={10}
+                      placeholder="Paste the full plain text of your CV here — education, experience, projects, skills, languages."
+                      className="input min-h-[200px] resize-y"
+                      aria-invalid={!!errors.cv}
+                    />
+                  ) : (
+                    <div>
+                      {!cvFileName ? (
+                        <div
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            setDragOver(true);
+                          }}
+                          onDragLeave={() => setDragOver(false)}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            setDragOver(false);
+                            handleFile(e.dataTransfer.files?.[0]);
+                          }}
+                          onClick={() => fileInputRef.current?.click()}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              fileInputRef.current?.click();
+                            }
+                          }}
+                          role="button"
+                          tabIndex={0}
+                          aria-label="Upload CV file. Accepted formats: PDF, DOCX, TXT. Maximum 5 megabytes."
+                          className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-8 text-center cursor-pointer transition ${
+                            dragOver
+                              ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)]/5"
+                              : "border-[color:var(--color-border)] bg-white"
+                          }`}
+                        >
+                          <svg className="h-8 w-8 text-[color:var(--color-muted-foreground)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                            <path d="M12 16V4m0 0l-4 4m4-4l4 4" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          <p className="text-sm font-medium text-[color:var(--color-surface-foreground)]">
+                            Drag &amp; drop your CV here, or <span className="text-[color:var(--color-primary)] underline">browse</span>
+                          </p>
+                          <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                            Accepted formats: PDF, DOCX, TXT · Max 5 MB
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-[color:var(--color-border)] bg-white p-4">
+                          <div className="flex items-start justify-between gap-3 flex-wrap">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {extracting ? (
+                                <Spinner />
+                              ) : cvFileError ? (
+                                <span className="h-2.5 w-2.5 rounded-full bg-[color:var(--color-danger)]" aria-hidden />
+                              ) : (
+                                <span
+                                  className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[color:var(--color-success)]/15 text-[color:var(--color-success)] text-xs font-bold"
+                                  aria-hidden
+                                >
+                                  ✓
+                                </span>
+                              )}
+                              <span className="text-sm font-medium truncate text-[color:var(--color-surface-foreground)]">
+                                {cvFileName}
+                              </span>
+                              <span className="sr-only" aria-live="polite">
+                                {extracting
+                                  ? "Reading your CV"
+                                  : cvFileError
+                                    ? cvFileError
+                                    : `CV extracted successfully, ${cvFileText.length} characters.`}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                className="text-xs font-medium text-[color:var(--color-primary)] hover:underline"
+                                disabled={extracting}
+                              >
+                                Replace File
+                              </button>
+                              <button
+                                type="button"
+                                onClick={clearFile}
+                                className="text-xs font-medium text-[color:var(--color-muted-foreground)] hover:underline"
+                                disabled={extracting}
+                              >
+                                Remove File
+                              </button>
+                            </div>
+                          </div>
+
+                          {extracting && (
+                            <p className="mt-2 text-xs text-[color:var(--color-muted-foreground)]">
+                              Reading your CV...
+                            </p>
+                          )}
+
+                          {cvFileError && (
+                            <p role="alert" className="mt-2 text-sm text-[color:var(--color-danger)]">
+                              {cvFileError}
+                            </p>
+                          )}
+
+                          {!extracting && !cvFileError && cvFileText && (
+                            <details
+                              className="mt-3 rounded-lg bg-[color:var(--color-muted)] p-3"
+                              open={previewOpen}
+                              onToggle={(e) => setPreviewOpen((e.target as HTMLDetailsElement).open)}
+                            >
+                              <summary className="cursor-pointer text-xs font-semibold text-[color:var(--color-surface-foreground)]">
+                                Extracted CV Text ({cvFileText.length.toLocaleString()} chars)
+                              </summary>
+                              <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap text-xs text-[color:var(--color-surface-foreground)]">
+                                {cvFileText}
+                              </pre>
+                            </details>
+                          )}
+                        </div>
+                      )}
+
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                        className="sr-only"
+                        aria-label="CV file"
+                        onChange={(e) => {
+                          handleFile(e.target.files?.[0]);
+                        }}
+                      />
+
+                      <p className="mt-2 text-xs text-[color:var(--color-muted-foreground)]">
+                        Your file is used only to generate this analysis. Avoid uploading unnecessary sensitive personal information. Max file size {Math.round(MAX_CV_BYTES / 1024 / 1024)} MB.
+                      </p>
+                    </div>
+                  )}
                 </Field>
 
                 <Field id="jd" label="Job Description" required error={errors.jobDescription}>
