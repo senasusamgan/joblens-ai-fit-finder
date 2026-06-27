@@ -213,7 +213,7 @@ function Index() {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobTitle, companyName, cv, jobDescription, language }),
+        body: JSON.stringify({ jobTitle, companyName, cv: activeCv, jobDescription, language }),
       });
       if (!res.ok) throw new Error("failed");
       const data = (await res.json()) as Analysis;
