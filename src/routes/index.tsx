@@ -134,19 +134,75 @@ function Index() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // CV input mode
+  const [cvMode, setCvMode] = useState<"paste" | "upload">("paste");
+  const [cvFileName, setCvFileName] = useState<string | null>(null);
+  const [cvFileText, setCvFileText] = useState<string>("");
+  const [cvFileError, setCvFileError] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const t = T[analysisLang];
+
+  const activeCv = cvMode === "upload" ? cvFileText : cv;
 
   const validate = () => {
     const e: Record<string, string> = {};
     if (!jobTitle.trim()) e.jobTitle = "Please enter the job title.";
-    if (!cv.trim()) e.cv = "Please paste your CV.";
-    else if (cv.trim().length < 150) e.cv = "Your CV looks too short. Please paste the full text (at least 150 characters).";
+    if (cvMode === "paste") {
+      if (!cv.trim()) e.cv = "Please paste your CV.";
+      else if (cv.trim().length < 150)
+        e.cv = "Your CV looks too short. Please paste the full text (at least 150 characters).";
+    } else {
+      if (!cvFileText.trim())
+        e.cv = "Please upload your CV file.";
+      else if (cvFileText.trim().length < 150)
+        e.cv = "We could only read a small amount of text from this file. Please try another file or paste the CV text manually.";
+    }
     if (!jobDescription.trim()) e.jobDescription = "Please paste the job description.";
     else if (jobDescription.trim().length < 150)
       e.jobDescription = "The job description looks too short. Please paste the complete posting (at least 150 characters).";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
+
+  const handleFile = async (file: File | undefined | null) => {
+    if (!file) return;
+    setCvFileError(null);
+    setCvFileText("");
+    setCvFileName(file.name);
+    setPreviewOpen(false);
+    setExtracting(true);
+    try {
+      const text = await extractCvText(file);
+      setCvFileText(text);
+      setErrors((prev) => {
+        const { cv: _omit, ...rest } = prev;
+        return rest;
+      });
+    } catch (err) {
+      const msg =
+        err instanceof CvExtractError
+          ? err.message
+          : "We couldn’t read this CV. Please try another file or paste the CV text manually.";
+      setCvFileError(msg);
+      setCvFileText("");
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  const clearFile = () => {
+    setCvFileName(null);
+    setCvFileText("");
+    setCvFileError(null);
+    setPreviewOpen(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
 
   const submit = async () => {
     if (!validate()) return;
