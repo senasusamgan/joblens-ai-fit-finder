@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { extractCvText, CvExtractError, MAX_CV_BYTES } from "@/lib/cv-extract";
 
 export const Route = createFileRoute("/")({
   head: () => ({
