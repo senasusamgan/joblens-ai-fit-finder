@@ -137,6 +137,7 @@ function Index() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [copied, setCopied] = useState(false);
+  const [savedApplicationId, setSavedApplicationId] = useState<string | null>(null);
 
   // CV input mode
   const [cvMode, setCvMode] = useState<"paste" | "upload">("paste");
@@ -212,6 +213,7 @@ function Index() {
     setLoading(true);
     setSubmitError(null);
     setAnalysis(null);
+    setSavedApplicationId(null);
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
@@ -232,9 +234,25 @@ function Index() {
     }
   };
 
+  const saveToApplications = () => {
+    if (!analysis || savedApplicationId) return;
+
+    const saved = createApplication({
+      jobTitle: jobTitle.trim(),
+      companyName: companyName.trim(),
+      jobDescription: jobDescription.trim() || undefined,
+      status: "Saved",
+      matchScore: analysis.matchScore,
+      verdict: analysis.verdict,
+    });
+
+    setSavedApplicationId(saved.id);
+  };
+
   const reset = () => {
     setAnalysis(null);
     setSubmitError(null);
+    setSavedApplicationId(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -251,6 +269,8 @@ function Index() {
 
   return (
     <div className="min-h-screen">
+      <SiteNav />
+
       {/* Header */}
       <header className="px-6 pt-12 pb-8 md:pt-20 md:pb-12">
         <div className="mx-auto max-w-5xl text-center">
@@ -577,6 +597,37 @@ function Index() {
                   </p>
                 </div>
                 <ScoreRing score={analysis.matchScore} label={t.estimatedMatch} />
+              </div>
+
+              <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-[color:var(--color-border)] pt-5">
+                <button
+                  type="button"
+                  onClick={saveToApplications}
+                  disabled={!!savedApplicationId}
+                  className={`inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition ${
+                    savedApplicationId
+                      ? "bg-[color:var(--color-success)] cursor-default"
+                      : "hover:opacity-90"
+                  }`}
+                  style={savedApplicationId ? undefined : { background: "var(--gradient-hero)" }}
+                >
+                  {savedApplicationId
+                    ? analysisLang === "Turkish"
+                      ? "✓ Başvurulara Kaydedildi"
+                      : "✓ Saved to Applications"
+                    : analysisLang === "Turkish"
+                      ? "Başvurulara Kaydet"
+                      : "Save to Applications"}
+                </button>
+
+                {savedApplicationId && (
+                  <Link
+                    to="/applications"
+                    className="inline-flex items-center rounded-xl border border-[color:var(--color-border)] px-5 py-2.5 text-sm font-semibold text-[color:var(--color-surface-foreground)] transition hover:bg-[color:var(--color-muted)]"
+                  >
+                    {analysisLang === "Turkish" ? "Başvuruları Gör →" : "View Applications →"}
+                  </Link>
+                )}
               </div>
             </div>
 
