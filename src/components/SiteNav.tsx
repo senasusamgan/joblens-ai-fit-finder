@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Sparkles, LayoutList } from "lucide-react";
+import { AuthControl } from "@/components/AuthControl";
 
 const linkBase =
   "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white/65 transition hover:bg-white/10 hover:text-white";
@@ -43,6 +44,7 @@ export function SiteNav() {
             <span className="hidden xs:inline sm:inline">Applications</span>
             <span className="sm:hidden xs:hidden">Apps</span>
           </Link>
+          <AuthControl />
         </div>
       </nav>
     </div>
