@@ -31,6 +31,7 @@ import {
 } from "@/lib/applications";
 import {
   migrateGuestApplicationsToCloud,
+  saveApplicationForCurrentUser,
   updateCloudApplication,
 } from "@/lib/cloud-applications";
 import {
@@ -80,6 +81,32 @@ const statusAccent: Record<ApplicationStatus, string> = {
   Rejected: "bg-[color:var(--color-danger)]",
 };
 
+function suggestCompanyFromSignal(signal: GmailSignal): string {
+  const displayName = signal.from
+    .split("<")[0]
+    .replace(/^["']|["']$/g, "")
+    .trim();
+
+  if (displayName && !displayName.includes("@")) {
+    return displayName
+      .replace(/\.(com|io)$/i, "")
+      .trim();
+  }
+
+  const emailMatch = signal.from.match(/@([^>\s]+)/);
+
+  if (!emailMatch) return "";
+
+  const domain = emailMatch[1]
+    .split(".")[0]
+    .replace(/[-_]+/g, " ")
+    .trim();
+
+  return domain
+    ? domain.charAt(0).toUpperCase() + domain.slice(1)
+    : "";
+}
+
 function DashboardPage() {
   const [apps, setApps] = useState<Application[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -96,6 +123,11 @@ function DashboardPage() {
   const [gmailApplicationSelection, setGmailApplicationSelection] =
     useState<Record<string, string>>({});
   const [gmailApplyingId, setGmailApplyingId] = useState<string | null>(null);
+
+  const [gmailNewSignalId, setGmailNewSignalId] =
+    useState<string | null>(null);
+  const [gmailNewJobTitle, setGmailNewJobTitle] = useState("");
+  const [gmailNewCompanyName, setGmailNewCompanyName] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -298,6 +330,9 @@ function DashboardPage() {
 
       setGmailSignals(signals);
       setGmailApplicationSelection({});
+      setGmailNewSignalId(null);
+      setGmailNewJobTitle("");
+      setGmailNewCompanyName("");
       setGmailScanned(true);
       setGmailConnected(true);
     } catch (error) {
@@ -396,6 +431,101 @@ function DashboardPage() {
     } finally {
       setGmailApplyingId(null);
     }
+  };
+
+  const openNewApplicationFromSignal = (
+    signal: GmailSignal,
+  ) => {
+    setGmailNewSignalId(signal.messageId);
+    setGmailNewJobTitle("");
+    setGmailNewCompanyName(
+      suggestCompanyFromSignal(signal),
+    );
+    setGmailError(null);
+  };
+
+  const addGmailSignalAsApplication = async (
+    signal: GmailSignal,
+  ) => {
+    const jobTitle = gmailNewJobTitle.trim();
+    const companyName = gmailNewCompanyName.trim();
+
+    if (!jobTitle) {
+      setGmailError(
+        "Enter the job or program title before adding it to the tracker.",
+      );
+      return;
+    }
+
+    if (!companyName) {
+      setGmailError(
+        "Enter the company or organization name before adding it to the tracker.",
+      );
+      return;
+    }
+
+    setGmailApplyingId(signal.messageId);
+    setGmailError(null);
+
+    try {
+      const created =
+        await saveApplicationForCurrentUser({
+          jobTitle,
+          companyName,
+          status: signal.suggestedStatus,
+        });
+
+      setApps((current) => [
+        created,
+        ...current.filter(
+          (app) => app.id !== created.id,
+        ),
+      ]);
+
+      setGmailSignals((current) =>
+        current.filter(
+          (item) =>
+            item.messageId !== signal.messageId,
+        ),
+      );
+
+      setGmailNewSignalId(null);
+      setGmailNewJobTitle("");
+      setGmailNewCompanyName("");
+    } catch (error) {
+      console.error(
+        "[JobLens Gmail] Could not create application:",
+        error,
+      );
+
+      setGmailError(
+        "JobLens couldn’t add this opportunity to the tracker. Please try again.",
+      );
+    } finally {
+      setGmailApplyingId(null);
+    }
+  };
+
+  const dismissGmailSignal = (signal: GmailSignal) => {
+    setGmailSignals((current) =>
+      current.filter(
+        (item) => item.messageId !== signal.messageId,
+      ),
+    );
+
+    setGmailApplicationSelection((current) => {
+      const next = { ...current };
+      delete next[signal.messageId];
+      return next;
+    });
+
+    if (gmailNewSignalId === signal.messageId) {
+      setGmailNewSignalId(null);
+      setGmailNewJobTitle("");
+      setGmailNewCompanyName("");
+    }
+
+    setGmailError(null);
   };
 
   return (
@@ -719,7 +849,7 @@ function DashboardPage() {
                             )}
                           </div>
 
-                          <div className="w-full shrink-0 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)] p-3 sm:w-64">
+                          <div className="w-full shrink-0 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)] p-3 sm:w-72">
                             <p className="text-xs text-[color:var(--color-muted-foreground)]">
                               Suggested status
                             </p>
@@ -728,68 +858,187 @@ function DashboardPage() {
                               {signal.suggestedStatus}
                             </p>
 
-                            <label
-                              htmlFor={`gmail-app-${signal.messageId}`}
-                              className="mt-3 block text-xs font-medium text-[color:var(--color-muted-foreground)]"
-                            >
-                              Apply to
-                            </label>
+                            <div className="mt-3 border-t border-[color:var(--color-border)] pt-3">
+                              <p className="text-xs font-semibold text-[color:var(--color-surface-foreground)]">
+                                Link to existing
+                              </p>
 
-                            <select
-                              id={`gmail-app-${signal.messageId}`}
-                              value={
-                                gmailApplicationSelection[
-                                  signal.messageId
-                                ] ?? ""
-                              }
-                              onChange={(event) =>
-                                setGmailApplicationSelection(
-                                  (current) => ({
-                                    ...current,
-                                    [signal.messageId]:
-                                      event.target.value,
-                                  }),
-                                )
-                              }
-                              className="mt-1 w-full rounded-lg border border-[color:var(--color-border)] bg-white px-2.5 py-2 text-xs text-[color:var(--color-surface-foreground)]"
-                            >
-                              <option value="">
-                                Choose application…
-                              </option>
-
-                              {apps.map((app) => (
-                                <option
-                                  key={app.id}
-                                  value={app.id}
-                                >
-                                  {app.jobTitle} ·{" "}
-                                  {app.companyName || "Company"}
+                              <select
+                                id={`gmail-app-${signal.messageId}`}
+                                aria-label="Choose existing application"
+                                value={
+                                  gmailApplicationSelection[
+                                    signal.messageId
+                                  ] ?? ""
+                                }
+                                onChange={(event) =>
+                                  setGmailApplicationSelection(
+                                    (current) => ({
+                                      ...current,
+                                      [signal.messageId]:
+                                        event.target.value,
+                                    }),
+                                  )
+                                }
+                                className="mt-1.5 w-full rounded-lg border border-[color:var(--color-border)] bg-white px-2.5 py-2 text-xs text-[color:var(--color-surface-foreground)]"
+                              >
+                                <option value="">
+                                  Choose application…
                                 </option>
-                              ))}
-                            </select>
+
+                                {apps.map((app) => (
+                                  <option
+                                    key={app.id}
+                                    value={app.id}
+                                  >
+                                    {app.jobTitle} ·{" "}
+                                    {app.companyName || "Company"}
+                                  </option>
+                                ))}
+                              </select>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  applyGmailSignal(signal)
+                                }
+                                disabled={
+                                  !gmailApplicationSelection[
+                                    signal.messageId
+                                  ] ||
+                                  gmailApplyingId ===
+                                    signal.messageId
+                                }
+                                className="mt-2 w-full rounded-lg px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                                style={{
+                                  background:
+                                    "var(--gradient-hero)",
+                                }}
+                              >
+                                {gmailApplyingId ===
+                                signal.messageId
+                                  ? "Updating…"
+                                  : "Link & Update"}
+                              </button>
+                            </div>
+
+                            <div className="mt-3 border-t border-[color:var(--color-border)] pt-3">
+                              {gmailNewSignalId ===
+                              signal.messageId ? (
+                                <div className="space-y-2.5">
+                                  <div>
+                                    <label
+                                      htmlFor={`gmail-company-${signal.messageId}`}
+                                      className="block text-xs font-medium text-[color:var(--color-muted-foreground)]"
+                                    >
+                                      Company / organization
+                                    </label>
+
+                                    <input
+                                      id={`gmail-company-${signal.messageId}`}
+                                      value={gmailNewCompanyName}
+                                      onChange={(event) =>
+                                        setGmailNewCompanyName(
+                                          event.target.value,
+                                        )
+                                      }
+                                      className="mt-1 w-full rounded-lg border border-[color:var(--color-border)] bg-white px-2.5 py-2 text-xs text-[color:var(--color-surface-foreground)]"
+                                      placeholder="e.g. Youthall"
+                                    />
+
+                                    <p className="mt-1 text-[11px] text-[color:var(--color-muted-foreground)]">
+                                      Suggested from sender — edit if needed.
+                                    </p>
+                                  </div>
+
+                                  <div>
+                                    <label
+                                      htmlFor={`gmail-title-${signal.messageId}`}
+                                      className="block text-xs font-medium text-[color:var(--color-muted-foreground)]"
+                                    >
+                                      Job / program title
+                                    </label>
+
+                                    <input
+                                      id={`gmail-title-${signal.messageId}`}
+                                      value={gmailNewJobTitle}
+                                      onChange={(event) =>
+                                        setGmailNewJobTitle(
+                                          event.target.value,
+                                        )
+                                      }
+                                      className="mt-1 w-full rounded-lg border border-[color:var(--color-border)] bg-white px-2.5 py-2 text-xs text-[color:var(--color-surface-foreground)]"
+                                      placeholder="Enter the real title"
+                                    />
+                                  </div>
+
+                                  <div className="rounded-lg border border-[color:var(--color-border)] bg-white px-2.5 py-2 text-xs">
+                                    <span className="text-[color:var(--color-muted-foreground)]">
+                                      Starting status
+                                    </span>
+                                    <span className="ml-2 font-semibold text-[color:var(--color-surface-foreground)]">
+                                      {signal.suggestedStatus}
+                                    </span>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      addGmailSignalAsApplication(
+                                        signal,
+                                      )
+                                    }
+                                    disabled={
+                                      gmailApplyingId ===
+                                      signal.messageId
+                                    }
+                                    className="w-full rounded-lg px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-40"
+                                    style={{
+                                      background:
+                                        "var(--gradient-hero)",
+                                    }}
+                                  >
+                                    {gmailApplyingId ===
+                                    signal.messageId
+                                      ? "Adding…"
+                                      : "Add to Tracker"}
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setGmailNewSignalId(null);
+                                      setGmailNewJobTitle("");
+                                      setGmailNewCompanyName("");
+                                    }}
+                                    className="w-full rounded-lg border border-[color:var(--color-border)] bg-white px-3 py-2 text-xs font-medium text-[color:var(--color-surface-foreground)] hover:bg-[color:var(--color-muted)]"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    openNewApplicationFromSignal(
+                                      signal,
+                                    )
+                                  }
+                                  className="w-full rounded-lg border border-[color:var(--color-primary)]/30 bg-[color:var(--color-primary)]/5 px-3 py-2 text-xs font-semibold text-[color:var(--color-primary)] hover:bg-[color:var(--color-primary)]/10"
+                                >
+                                  + Add as New Application
+                                </button>
+                              )}
+                            </div>
 
                             <button
                               type="button"
                               onClick={() =>
-                                applyGmailSignal(signal)
+                                dismissGmailSignal(signal)
                               }
-                              disabled={
-                                !gmailApplicationSelection[
-                                  signal.messageId
-                                ] ||
-                                gmailApplyingId ===
-                                  signal.messageId
-                              }
-                              className="mt-2.5 w-full rounded-lg px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-                              style={{
-                                background:
-                                  "var(--gradient-hero)",
-                              }}
+                              className="mt-3 w-full rounded-lg px-3 py-2 text-xs font-medium text-[color:var(--color-muted-foreground)] transition hover:bg-white hover:text-[color:var(--color-surface-foreground)]"
                             >
-                              {gmailApplyingId ===
-                              signal.messageId
-                                ? "Updating…"
-                                : `Apply ${signal.suggestedStatus}`}
+                              Dismiss
                             </button>
                           </div>
                         </div>
