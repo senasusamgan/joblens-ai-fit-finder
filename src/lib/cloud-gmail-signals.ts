@@ -58,9 +58,21 @@ export async function markGmailSignalHandled({
 
   const { error } = await supabase
     .from("gmail_signal_actions")
-    .upsert(row, {
-      onConflict: "user_id,message_id",
-    });
+    .insert(row);
 
-  if (error) throw error;
+  // Already handled = desired final state.
+  if (error?.code === "23505") {
+    return;
+  }
+
+  if (error) {
+    console.error(
+      "[JobLens Gmail] Handled signal persistence failed:",
+      error,
+    );
+
+    throw new Error(
+      `GMAIL_HANDLED_SYNC_FAILED:${error.code ?? "unknown"}`,
+    );
+  }
 }
