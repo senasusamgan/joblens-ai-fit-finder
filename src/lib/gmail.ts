@@ -188,9 +188,15 @@ function detectSignal(
     "application submitted",
     "thank you for applying",
     "we received your application",
+    "your application was sent",
+    "application was sent to",
+    "your application was viewed",
+    "application was viewed by",
     "başvurunuz alınmıştır",
     "başvurunuzu aldık",
     "başvurunuz başarıyla",
+    "başvurunuz gönderildi",
+    "başvurunuz görüntülendi",
   ];
 
   let kind: GmailSignalKind | null = null;
@@ -300,7 +306,7 @@ export async function scanGmailForJobSignals(): Promise<
     throw new Error("GMAIL_AUTH_REQUIRED");
   }
 
-  const query = [
+  const generalQuery = [
     "newer_than:90d",
     "(",
     "application",
@@ -316,12 +322,35 @@ export async function scanGmailForJobSignals(): Promise<
     ")",
   ].join(" ");
 
-  const list = await gmailFetch<GmailMessageList>(
-    `messages?maxResults=30&q=${encodeURIComponent(query)}`,
-    token,
-  );
+  const linkedInQuery = [
+    "newer_than:90d",
+    "from:linkedin.com",
+  ].join(" ");
 
-  const messages = list.messages ?? [];
+  const [generalList, linkedInList] = await Promise.all([
+    gmailFetch<GmailMessageList>(
+      `messages?maxResults=30&q=${encodeURIComponent(generalQuery)}`,
+      token,
+    ),
+    gmailFetch<GmailMessageList>(
+      `messages?maxResults=30&q=${encodeURIComponent(linkedInQuery)}`,
+      token,
+    ),
+  ]);
+
+  const messageMap = new Map<
+    string,
+    { id: string; threadId: string }
+  >();
+
+  for (const message of [
+    ...(generalList.messages ?? []),
+    ...(linkedInList.messages ?? []),
+  ]) {
+    messageMap.set(message.id, message);
+  }
+
+  const messages = [...messageMap.values()];
 
   const results = await Promise.all(
     messages.map(async ({ id }) => {
