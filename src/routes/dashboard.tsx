@@ -82,12 +82,12 @@ function DashboardPage() {
       setLoadError(null);
 
       try {
+        const applications = await migrateGuestApplicationsToCloud();
+        const reminderList = await migrateGuestRemindersToCloud();
+
         const {
           data: { session },
         } = await supabase.auth.getSession();
-
-        const applications = await migrateGuestApplicationsToCloud();
-        const reminderList = await migrateGuestRemindersToCloud();
 
         if (!mounted) return;
 
@@ -202,17 +202,23 @@ function DashboardPage() {
     const completedAt = new Date().toISOString();
 
     try {
-      if (cloudMode) {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session) {
         const updated = await updateCloudReminder(reminder.id, {
           completedAt,
         });
 
+        setCloudMode(true);
         setReminders((current) =>
           current.map((item) =>
             item.id === reminder.id ? updated : item,
           ),
         );
       } else {
+        setCloudMode(false);
         setReminders(
           updateReminder(reminder.id, {
             completedAt,
