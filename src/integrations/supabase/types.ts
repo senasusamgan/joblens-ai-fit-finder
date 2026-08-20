@@ -65,6 +65,42 @@ export type Database = {
         }
         Relationships: []
       }
+      application_reminders: {
+        Row: {
+          id: string
+          user_id: string
+          application_id: string
+          title: string
+          due_at: string
+          completed_at: string | null
+          source_local_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string
+          application_id: string
+          title: string
+          due_at: string
+          completed_at?: string | null
+          source_local_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          application_id?: string
+          title?: string
+          due_at?: string
+          completed_at?: string | null
+          source_local_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -8,6 +8,7 @@ import {
   Briefcase,
   X,
   Sparkles,
+  Bell,
 } from "lucide-react";
 import { SiteNav } from "@/components/SiteNav";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +29,8 @@ import {
   migrateGuestApplicationsToCloud,
   updateCloudApplication,
 } from "@/lib/cloud-applications";
+import { createReminderForCurrentUser } from "@/lib/cloud-reminders";
+import { deleteRemindersForApplication } from "@/lib/reminders";
 
 export const Route = createFileRoute("/applications")({
   head: () => ({
@@ -91,6 +94,12 @@ function ApplicationsPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [cloudMode, setCloudMode] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+
+  const [reminderApp, setReminderApp] = useState<Application | null>(null);
+  const [reminderTitle, setReminderTitle] = useState("Follow up");
+  const [reminderDueAt, setReminderDueAt] = useState("");
+  const [reminderError, setReminderError] = useState<string | null>(null);
+  const [reminderBusy, setReminderBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -242,11 +251,70 @@ function ApplicationsPage() {
         await deleteCloudApplication(a.id);
         setApps((current) => current.filter((app) => app.id !== a.id));
       } else {
+        deleteRemindersForApplication(a.id);
         setApps(deleteApplication(a.id));
       }
     } catch (error) {
       console.error("[JobLens] Application delete failed:", error);
       setSyncError("We couldn’t delete this application. Please try again.");
+    }
+  };
+
+  const openReminder = (app: Application) => {
+    setReminderApp(app);
+
+    const suggestedTitle =
+      app.status === "Interview"
+        ? "Interview"
+        : app.status === "Case"
+          ? "Case deadline"
+          : "Follow up";
+
+    setReminderTitle(suggestedTitle);
+    setReminderDueAt("");
+    setReminderError(null);
+  };
+
+  const submitReminder = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!reminderApp) return;
+
+    if (!reminderTitle.trim()) {
+      setReminderError("Please enter a reminder title.");
+      return;
+    }
+
+    if (!reminderDueAt) {
+      setReminderError("Please choose a date and time.");
+      return;
+    }
+
+    const dueDate = new Date(reminderDueAt);
+
+    if (Number.isNaN(dueDate.getTime())) {
+      setReminderError("Please choose a valid date and time.");
+      return;
+    }
+
+    setReminderBusy(true);
+    setReminderError(null);
+
+    try {
+      await createReminderForCurrentUser({
+        applicationId: reminderApp.id,
+        title: reminderTitle.trim(),
+        dueAt: dueDate.toISOString(),
+      });
+
+      setReminderApp(null);
+      setReminderTitle("Follow up");
+      setReminderDueAt("");
+    } catch (error) {
+      console.error("[JobLens] Reminder creation failed:", error);
+      setReminderError("We couldn’t save this reminder. Please try again.");
+    } finally {
+      setReminderBusy(false);
     }
   };
 
@@ -339,6 +407,7 @@ function ApplicationsPage() {
                             onStatus={changeStatus}
                             onEdit={openEdit}
                             onDelete={remove}
+                            onReminder={openReminder}
                           />
                         ))
                       )}
@@ -363,6 +432,107 @@ function ApplicationsPage() {
           </p>
         </div>
       </main>
+
+      {reminderApp && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reminder-dialog-title"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !reminderBusy) {
+              setReminderApp(null);
+            }
+          }}
+        >
+          <div className="card-surface w-full max-w-md p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 id="reminder-dialog-title" className="text-xl font-semibold">
+                  Add reminder
+                </h2>
+                <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
+                  {reminderApp.jobTitle}
+                  {reminderApp.companyName
+                    ? ` · ${reminderApp.companyName}`
+                    : ""}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setReminderApp(null)}
+                disabled={reminderBusy}
+                aria-label="Close reminder dialog"
+                className="rounded-lg p-1.5 text-[color:var(--color-muted-foreground)] hover:bg-[color:var(--color-muted)]"
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+
+            <form className="mt-5 space-y-4" onSubmit={submitReminder}>
+              <FormField id="reminder-title" label="Action">
+                <select
+                  id="reminder-title"
+                  className="jl-input"
+                  value={reminderTitle}
+                  onChange={(e) => setReminderTitle(e.target.value)}
+                >
+                  <option value="Follow up">Follow up</option>
+                  <option value="Interview">Interview</option>
+                  <option value="Case deadline">Case deadline</option>
+                  <option value="Application deadline">
+                    Application deadline
+                  </option>
+                  <option value="Check application status">
+                    Check application status
+                  </option>
+                </select>
+              </FormField>
+
+              <FormField id="reminder-due" label="Date & time" required>
+                <input
+                  id="reminder-due"
+                  type="datetime-local"
+                  className="jl-input"
+                  value={reminderDueAt}
+                  onChange={(e) => setReminderDueAt(e.target.value)}
+                />
+              </FormField>
+
+              {reminderError && (
+                <p
+                  role="alert"
+                  className="text-sm text-[color:var(--color-danger)]"
+                >
+                  {reminderError}
+                </p>
+              )}
+
+              <div className="flex justify-end gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setReminderApp(null)}
+                  disabled={reminderBusy}
+                  className="rounded-xl border border-[color:var(--color-border)] px-4 py-2.5 text-sm font-medium text-[color:var(--color-surface-foreground)] hover:bg-[color:var(--color-muted)] disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={reminderBusy}
+                  className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+                  style={{ background: "var(--gradient-hero)" }}
+                >
+                  <Bell className="h-4 w-4" aria-hidden />
+                  {reminderBusy ? "Saving…" : "Add reminder"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {dialogOpen && (
         <div
@@ -520,11 +690,13 @@ function AppCard({
   onStatus,
   onEdit,
   onDelete,
+  onReminder,
 }: {
   app: Application;
   onStatus: (id: string, s: ApplicationStatus) => void;
   onEdit: (a: Application) => void;
   onDelete: (a: Application) => void;
+  onReminder: (a: Application) => void;
 }) {
   const date = app.appliedAt ? formatDate(app.appliedAt) : formatDate(app.createdAt);
   return (
@@ -586,6 +758,15 @@ function AppCard({
             <ExternalLink className="h-3.5 w-3.5" aria-hidden />
           </a>
         )}
+        <button
+          type="button"
+          onClick={() => onReminder(app)}
+          aria-label={`Add reminder for ${app.jobTitle}`}
+          title="Add reminder"
+          className="rounded-lg border border-[color:var(--color-border)] p-1.5 text-[color:var(--color-primary)] hover:bg-[color:var(--color-primary)]/10"
+        >
+          <Bell className="h-3.5 w-3.5" aria-hidden />
+        </button>
         <button
           type="button"
           onClick={() => onEdit(app)}

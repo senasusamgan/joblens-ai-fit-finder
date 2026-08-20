@@ -13,6 +13,9 @@ import {
   Sparkles,
   Target,
   Trophy,
+  BellRing,
+  AlertTriangle,
+  Check,
 } from "lucide-react";
 import { SiteNav } from "@/components/SiteNav";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,6 +27,15 @@ import {
   formatDate,
 } from "@/lib/applications";
 import { migrateGuestApplicationsToCloud } from "@/lib/cloud-applications";
+import {
+  migrateGuestRemindersToCloud,
+  updateCloudReminder,
+} from "@/lib/cloud-reminders";
+import {
+  loadReminders,
+  updateReminder,
+  type Reminder,
+} from "@/lib/reminders";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -57,6 +69,7 @@ const statusAccent: Record<ApplicationStatus, string> = {
 
 function DashboardPage() {
   const [apps, setApps] = useState<Application[]>([]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
   const [ready, setReady] = useState(false);
   const [cloudMode, setCloudMode] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -74,11 +87,13 @@ function DashboardPage() {
         } = await supabase.auth.getSession();
 
         const applications = await migrateGuestApplicationsToCloud();
+        const reminderList = await migrateGuestRemindersToCloud();
 
         if (!mounted) return;
 
         setCloudMode(Boolean(session));
         setApps(applications);
+        setReminders(reminderList);
       } catch (error) {
         console.error("[JobLens Dashboard] Could not load applications:", error);
 
@@ -86,6 +101,7 @@ function DashboardPage() {
 
         setCloudMode(false);
         setApps(loadApplications());
+        setReminders(loadReminders());
         setLoadError(
           "Cloud insights could not be loaded. Showing browser data instead.",
         );
@@ -152,11 +168,67 @@ function DashboardPage() {
     [apps],
   );
 
-  const savedCount = apps.filter((app) => app.status === "Saved").length;
-  const appliedCount = apps.filter((app) => app.status === "Applied").length;
-  const interviewCount = apps.filter(
-    (app) => app.status === "Interview" || app.status === "Case",
-  ).length;
+  const pendingReminders = useMemo(
+    () =>
+      reminders
+        .filter((reminder) => !reminder.completedAt)
+        .sort(
+          (a, b) =>
+            new Date(a.dueAt).getTime() -
+            new Date(b.dueAt).getTime(),
+        ),
+    [reminders],
+  );
+
+  const overdueReminders = useMemo(
+    () =>
+      pendingReminders.filter(
+        (reminder) =>
+          new Date(reminder.dueAt).getTime() < Date.now(),
+      ),
+    [pendingReminders],
+  );
+
+  const upcomingReminders = useMemo(
+    () =>
+      pendingReminders.filter(
+        (reminder) =>
+          new Date(reminder.dueAt).getTime() >= Date.now(),
+      ),
+    [pendingReminders],
+  );
+
+  const completeReminder = async (reminder: Reminder) => {
+    const completedAt = new Date().toISOString();
+
+    try {
+      if (cloudMode) {
+        const updated = await updateCloudReminder(reminder.id, {
+          completedAt,
+        });
+
+        setReminders((current) =>
+          current.map((item) =>
+            item.id === reminder.id ? updated : item,
+          ),
+        );
+      } else {
+        setReminders(
+          updateReminder(reminder.id, {
+            completedAt,
+          }),
+        );
+      }
+    } catch (error) {
+      console.error(
+        "[JobLens Dashboard] Could not complete reminder:",
+        error,
+      );
+      setLoadError(
+        "We couldn’t update this reminder. Please try again.",
+      );
+    }
+  };
 
   return (
     <div className="min-h-screen">
@@ -294,40 +366,69 @@ function DashboardPage() {
                     Small signals from your current pipeline.
                   </p>
 
-                  <div className="mt-5 space-y-3">
-                    {savedCount > 0 && (
-                      <ActionItem
-                        title={`${savedCount} saved ${
-                          savedCount === 1 ? "role" : "roles"
-                        }`}
-                        description="Review whether these opportunities are ready to become applications."
-                      />
+                  <div className="mt-5 space-y-5">
+                    {overdueReminders.length > 0 && (
+                      <div>
+                        <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[color:var(--color-danger)]">
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                          Overdue
+                        </div>
+
+                        <div className="space-y-2">
+                          {overdueReminders.slice(0, 4).map((reminder) => (
+                            <ReminderAction
+                              key={reminder.id}
+                              reminder={reminder}
+                              application={apps.find(
+                                (app) => app.id === reminder.applicationId,
+                              )}
+                              overdue
+                              onComplete={completeReminder}
+                            />
+                          ))}
+                        </div>
+                      </div>
                     )}
 
-                    {appliedCount > 0 && (
-                      <ActionItem
-                        title={`${appliedCount} ${
-                          appliedCount === 1
-                            ? "application is"
-                            : "applications are"
-                        } waiting`}
-                        description="Keep your active applications visible so follow-ups do not get lost."
-                      />
+                    {upcomingReminders.length > 0 && (
+                      <div>
+                        <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[color:var(--color-primary)]">
+                          <BellRing className="h-3.5 w-3.5" />
+                          Upcoming
+                        </div>
+
+                        <div className="space-y-2">
+                          {upcomingReminders.slice(0, 4).map((reminder) => (
+                            <ReminderAction
+                              key={reminder.id}
+                              reminder={reminder}
+                              application={apps.find(
+                                (app) => app.id === reminder.applicationId,
+                              )}
+                              onComplete={completeReminder}
+                            />
+                          ))}
+                        </div>
+                      </div>
                     )}
 
-                    {interviewCount > 0 && (
-                      <ActionItem
-                        title={`${interviewCount} interview/case ${
-                          interviewCount === 1 ? "stage" : "stages"
-                        }`}
-                        description="Prioritize preparation for the opportunities furthest in your pipeline."
-                      />
-                    )}
+                    {pendingReminders.length === 0 && (
+                      <div className="rounded-xl border border-dashed border-[color:var(--color-border)] p-5">
+                        <p className="text-sm font-medium text-[color:var(--color-surface-foreground)]">
+                          No upcoming actions
+                        </p>
+                        <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
+                          Add a reminder from any application to keep follow-ups,
+                          interviews and deadlines visible here.
+                        </p>
 
-                    {apps.length === 0 && (
-                      <div className="rounded-xl border border-dashed border-[color:var(--color-border)] p-5 text-sm text-[color:var(--color-muted-foreground)]">
-                        No application signals yet. Analyze your first role to
-                        start building your dashboard.
+                        <Link
+                          to="/applications"
+                          className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-[color:var(--color-primary)] hover:opacity-75"
+                        >
+                          Open applications
+                          <ArrowRight className="h-4 w-4" />
+                        </Link>
                       </div>
                     )}
                   </div>
@@ -438,19 +539,67 @@ function MetricCard({
   );
 }
 
-function ActionItem({
-  title,
-  description,
+function ReminderAction({
+  reminder,
+  application,
+  overdue = false,
+  onComplete,
 }: {
-  title: string;
-  description: string;
+  reminder: Reminder;
+  application?: Application;
+  overdue?: boolean;
+  onComplete: (reminder: Reminder) => void;
 }) {
+  const due = new Date(reminder.dueAt);
+
+  const dateLabel = Number.isNaN(due.getTime())
+    ? ""
+    : due.toLocaleString(undefined, {
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
   return (
-    <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)] p-4">
-      <p className="text-sm font-medium text-[color:var(--color-surface-foreground)]">{title}</p>
-      <p className="mt-1 text-sm leading-relaxed text-[color:var(--color-muted-foreground)]">
-        {description}
-      </p>
+    <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)] p-3.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-[color:var(--color-surface-foreground)]">
+            {reminder.title}
+          </p>
+
+          {application && (
+            <p className="mt-0.5 truncate text-xs text-[color:var(--color-muted-foreground)]">
+              {application.jobTitle}
+              {application.companyName
+                ? ` · ${application.companyName}`
+                : ""}
+            </p>
+          )}
+
+          <p
+            className={`mt-2 text-xs font-medium ${
+              overdue
+                ? "text-[color:var(--color-danger)]"
+                : "text-[color:var(--color-primary)]"
+            }`}
+          >
+            {overdue ? "Overdue · " : ""}
+            {dateLabel}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onComplete(reminder)}
+          title="Mark as done"
+          aria-label={`Mark ${reminder.title} as done`}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-[color:var(--color-border)] bg-white text-[color:var(--color-success)] transition hover:bg-[color:var(--color-success)]/10"
+        >
+          <Check className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }
