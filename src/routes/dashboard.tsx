@@ -27,8 +27,12 @@ import {
   type ApplicationStatus,
   loadApplications,
   formatDate,
+  updateApplication,
 } from "@/lib/applications";
-import { migrateGuestApplicationsToCloud } from "@/lib/cloud-applications";
+import {
+  migrateGuestApplicationsToCloud,
+  updateCloudApplication,
+} from "@/lib/cloud-applications";
 import {
   migrateGuestRemindersToCloud,
   updateCloudReminder,
@@ -88,6 +92,10 @@ function DashboardPage() {
   const [gmailError, setGmailError] = useState<string | null>(null);
   const [gmailSignals, setGmailSignals] = useState<GmailSignal[]>([]);
   const [gmailScanned, setGmailScanned] = useState(false);
+
+  const [gmailApplicationSelection, setGmailApplicationSelection] =
+    useState<Record<string, string>>({});
+  const [gmailApplyingId, setGmailApplyingId] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -289,6 +297,7 @@ function DashboardPage() {
       const signals = await scanGmailForJobSignals();
 
       setGmailSignals(signals);
+      setGmailApplicationSelection({});
       setGmailScanned(true);
       setGmailConnected(true);
     } catch (error) {
@@ -309,6 +318,83 @@ function DashboardPage() {
       }
     } finally {
       setGmailBusy(false);
+    }
+  };
+
+  const applyGmailSignal = async (signal: GmailSignal) => {
+    const applicationId =
+      gmailApplicationSelection[signal.messageId];
+
+    if (!applicationId) {
+      setGmailError(
+        "Choose an application before applying this Gmail signal.",
+      );
+      return;
+    }
+
+    const application = apps.find(
+      (app) => app.id === applicationId,
+    );
+
+    if (!application) {
+      setGmailError("That application could not be found.");
+      return;
+    }
+
+    setGmailApplyingId(signal.messageId);
+    setGmailError(null);
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session) {
+        const updated = await updateCloudApplication(
+          applicationId,
+          {
+            status: signal.suggestedStatus,
+          },
+        );
+
+        setApps((current) =>
+          current.map((app) =>
+            app.id === applicationId ? updated : app,
+          ),
+        );
+      } else {
+        const updatedApps = updateApplication(
+          applicationId,
+          {
+            status: signal.suggestedStatus,
+          },
+        );
+
+        setApps(updatedApps);
+      }
+
+      setGmailSignals((current) =>
+        current.filter(
+          (item) => item.messageId !== signal.messageId,
+        ),
+      );
+
+      setGmailApplicationSelection((current) => {
+        const next = { ...current };
+        delete next[signal.messageId];
+        return next;
+      });
+    } catch (error) {
+      console.error(
+        "[JobLens Gmail] Could not apply signal:",
+        error,
+      );
+
+      setGmailError(
+        "JobLens couldn’t update this application. Please try again.",
+      );
+    } finally {
+      setGmailApplyingId(null);
     }
   };
 
@@ -633,13 +719,78 @@ function DashboardPage() {
                             )}
                           </div>
 
-                          <div className="shrink-0 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-muted)] px-3 py-2 text-xs">
-                            <span className="text-[color:var(--color-muted-foreground)]">
-                              Suggested
-                            </span>
-                            <p className="mt-0.5 font-semibold text-[color:var(--color-surface-foreground)]">
+                          <div className="w-full shrink-0 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)] p-3 sm:w-64">
+                            <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                              Suggested status
+                            </p>
+
+                            <p className="mt-0.5 text-sm font-semibold text-[color:var(--color-surface-foreground)]">
                               {signal.suggestedStatus}
                             </p>
+
+                            <label
+                              htmlFor={`gmail-app-${signal.messageId}`}
+                              className="mt-3 block text-xs font-medium text-[color:var(--color-muted-foreground)]"
+                            >
+                              Apply to
+                            </label>
+
+                            <select
+                              id={`gmail-app-${signal.messageId}`}
+                              value={
+                                gmailApplicationSelection[
+                                  signal.messageId
+                                ] ?? ""
+                              }
+                              onChange={(event) =>
+                                setGmailApplicationSelection(
+                                  (current) => ({
+                                    ...current,
+                                    [signal.messageId]:
+                                      event.target.value,
+                                  }),
+                                )
+                              }
+                              className="mt-1 w-full rounded-lg border border-[color:var(--color-border)] bg-white px-2.5 py-2 text-xs text-[color:var(--color-surface-foreground)]"
+                            >
+                              <option value="">
+                                Choose application…
+                              </option>
+
+                              {apps.map((app) => (
+                                <option
+                                  key={app.id}
+                                  value={app.id}
+                                >
+                                  {app.jobTitle} ·{" "}
+                                  {app.companyName || "Company"}
+                                </option>
+                              ))}
+                            </select>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                applyGmailSignal(signal)
+                              }
+                              disabled={
+                                !gmailApplicationSelection[
+                                  signal.messageId
+                                ] ||
+                                gmailApplyingId ===
+                                  signal.messageId
+                              }
+                              className="mt-2.5 w-full rounded-lg px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                              style={{
+                                background:
+                                  "var(--gradient-hero)",
+                              }}
+                            >
+                              {gmailApplyingId ===
+                              signal.messageId
+                                ? "Updating…"
+                                : `Apply ${signal.suggestedStatus}`}
+                            </button>
                           </div>
                         </div>
                       </div>
