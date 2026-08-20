@@ -140,6 +140,31 @@ function detectSignal(
   const subjectText = subject.toLowerCase();
   const text = `${subject} ${snippet}`.toLowerCase();
 
+  const sender = senderKey(from);
+  const isLinkedInSender =
+    sender.endsWith("@linkedin.com");
+
+  const linkedInAppliedSubject =
+    isLinkedInSender &&
+    (
+      (
+        subjectText.includes("başvurunuz") &&
+        subjectText.includes("gönderildi")
+      ) ||
+      (
+        subjectText.includes("başvurunuz") &&
+        subjectText.includes("görüntülendi")
+      ) ||
+      (
+        subjectText.includes("application") &&
+        subjectText.includes("sent")
+      ) ||
+      (
+        subjectText.includes("application") &&
+        subjectText.includes("viewed")
+      )
+    );
+
   const rejectedTerms = [
     "unfortunately",
     "not moving forward",
@@ -215,7 +240,10 @@ function detectSignal(
   } else if (includesAny(subjectText, interviewTerms)) {
     kind = "Interview";
     confidence = "high";
-  } else if (includesAny(subjectText, appliedTerms)) {
+  } else if (
+    linkedInAppliedSubject ||
+    includesAny(subjectText, appliedTerms)
+  ) {
     kind = "Applied";
     confidence = "high";
   }
