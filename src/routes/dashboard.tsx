@@ -85,7 +85,44 @@ const statusAccent: Record<ApplicationStatus, string> = {
   Rejected: "bg-[color:var(--color-danger)]",
 };
 
+function cleanCompanySuggestion(value: string): string {
+  return value
+    .replace(/\s+/g, " ")
+    .replace(/^["']+|["']+$/g, "")
+    .replace(/[,:;!?]+$/g, "")
+    .trim();
+}
+
+function extractCompanyFromSignal(
+  signal: GmailSignal,
+): string | null {
+  const text = `${signal.subject}\n${signal.snippet}`;
+
+  const patterns = [
+    /başvurunuz\s+(.+?)\s+şirketine\s+(?:gönderildi|iletildi|görüntülendi)/i,
+    /başvurun\s+(.+?)\s+şirketine\s+(?:gönderildi|iletildi|görüntülendi)/i,
+    /(?:your\s+)?application(?:\s+was)?\s+(?:sent to|viewed by)\s+(.+?)(?:[.!]|$)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+
+    if (match?.[1]) {
+      const company = cleanCompanySuggestion(match[1]);
+      if (company) return company;
+    }
+  }
+
+  return null;
+}
+
 function suggestCompanyFromSignal(signal: GmailSignal): string {
+  const extractedCompany = extractCompanyFromSignal(signal);
+
+  if (extractedCompany) {
+    return extractedCompany;
+  }
+
   const displayName = signal.from
     .split("<")[0]
     .replace(/^["']|["']$/g, "")
