@@ -1,23 +1,23 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { LogIn, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  clearGoogleProviderToken,
-  rememberGoogleProviderToken,
-} from "@/lib/gmail";
+import { clearGoogleProviderToken } from "@/lib/gmail";
+import { renderGoogleSignInButton } from "@/lib/google-identity";
 
 export function AuthControl() {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let mounted = true;
 
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
-      rememberGoogleProviderToken(data.session);
+
       setSession(data.session);
       setReady(true);
     });
@@ -27,6 +27,7 @@ export function AuthControl() {
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       setReady(true);
+      setBusy(false);
     });
 
     return () => {
@@ -35,18 +36,28 @@ export function AuthControl() {
     };
   }, []);
 
-  const signIn = async () => {
-    setBusy(true);
-
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-    });
-
-    if (error) {
-      console.error("[JobLens Auth] Google sign-in failed:", error.message);
-      setBusy(false);
+  useEffect(() => {
+    if (!ready || session || !googleButtonRef.current) {
+      return;
     }
-  };
+
+    setAuthError(null);
+
+    void renderGoogleSignInButton(
+      googleButtonRef.current,
+      async () => {
+        setBusy(false);
+      },
+      (error) => {
+        console.error(
+          "[JobLens Auth] Google sign-in failed:",
+          error.message,
+        );
+        setAuthError("Google sign-in failed. Please try again.");
+        setBusy(false);
+      },
+    );
+  }, [ready, session]);
 
   const signOut = async () => {
     setBusy(true);
@@ -56,24 +67,28 @@ export function AuthControl() {
   };
 
   if (!ready) {
-    return <div className="h-8 w-16" aria-hidden />;
+    return <div className="h-8 w-20" aria-hidden />;
   }
 
   if (!session) {
     return (
-      <button
-        type="button"
-        onClick={signIn}
-        disabled={busy}
-        className="ml-1 inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white disabled:opacity-60"
-      >
-        <LogIn className="h-4 w-4" aria-hidden />
-        <span className="hidden sm:inline">Sign in</span>
-      </button>
+      <div className="ml-1 flex flex-col items-end">
+        <div
+          ref={googleButtonRef}
+          className={busy ? "pointer-events-none opacity-60" : ""}
+        />
+
+        {authError && (
+          <span className="mt-1 max-w-48 text-right text-[10px] text-red-400">
+            {authError}
+          </span>
+        )}
+      </div>
     );
   }
 
   const user = session.user;
+
   const displayName =
     typeof user.user_metadata?.full_name === "string"
       ? user.user_metadata.full_name

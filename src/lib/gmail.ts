@@ -1,5 +1,4 @@
-import type { Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { requestGoogleAccessToken } from "@/lib/google-identity";
 import type { ApplicationStatus } from "@/lib/applications";
 import {
   classifyGmailSignal,
@@ -29,19 +28,6 @@ function isBrowser(): boolean {
   );
 }
 
-export function rememberGoogleProviderToken(
-  session: Session | null,
-): void {
-  if (!isBrowser()) return;
-
-  if (session?.provider_token) {
-    window.sessionStorage.setItem(
-      GMAIL_TOKEN_KEY,
-      session.provider_token,
-    );
-  }
-}
-
 export function clearGoogleProviderToken(): void {
   if (!isBrowser()) return;
   window.sessionStorage.removeItem(GMAIL_TOKEN_KEY);
@@ -57,18 +43,18 @@ export function hasGmailToken(): boolean {
 }
 
 export async function connectGmail(): Promise<void> {
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      scopes: "https://www.googleapis.com/auth/gmail.readonly",
-      queryParams: {
-        prompt: "consent",
-        include_granted_scopes: "true",
-      },
-    },
-  });
+  if (!isBrowser()) {
+    throw new Error("GMAIL_AUTH_REQUIRED");
+  }
 
-  if (error) throw error;
+  const token = await requestGoogleAccessToken(
+    "https://www.googleapis.com/auth/gmail.readonly",
+  );
+
+  window.sessionStorage.setItem(
+    GMAIL_TOKEN_KEY,
+    token,
+  );
 }
 
 type GmailMessageList = {

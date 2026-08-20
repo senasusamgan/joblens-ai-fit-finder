@@ -46,7 +46,6 @@ import {
 import {
   connectGmail,
   hasGmailToken,
-  rememberGoogleProviderToken,
   scanGmailForJobSignals,
   type GmailSignal,
 } from "@/lib/gmail";
@@ -127,7 +126,6 @@ function DashboardPage() {
 
         if (!mounted) return;
 
-        rememberGoogleProviderToken(session);
 
         setCloudMode(Boolean(session));
         setGmailConnected(Boolean(session) && hasGmailToken());
@@ -292,6 +290,8 @@ function DashboardPage() {
 
     try {
       await connectGmail();
+      setGmailConnected(true);
+      setGmailBusy(false);
     } catch (error) {
       console.error("[JobLens Gmail] Connect failed:", error);
       setGmailError(
