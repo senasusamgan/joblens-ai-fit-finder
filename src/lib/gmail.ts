@@ -143,6 +143,21 @@ function detectSignal(
   const sender = senderKey(from);
   const isLinkedInSender =
     sender.endsWith("@linkedin.com");
+  const isYouthallSender =
+    sender.endsWith("@youthall.com");
+
+  const youthallAppliedSignal =
+    isYouthallSender &&
+    (
+      (
+        subjectText.includes("başvurun") &&
+        subjectText.includes("alındı")
+      ) ||
+      (
+        text.includes("başvurun") &&
+        text.includes("iletildi")
+      )
+    );
 
   const linkedInAppliedSubject =
     isLinkedInSender &&
@@ -241,6 +256,7 @@ function detectSignal(
     kind = "Interview";
     confidence = "high";
   } else if (
+    youthallAppliedSignal ||
     linkedInAppliedSubject ||
     includesAny(subjectText, appliedTerms)
   ) {
