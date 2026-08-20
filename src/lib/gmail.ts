@@ -110,6 +110,25 @@ function includesAny(
   return terms.some((term) => text.includes(term));
 }
 
+function normaliseSignalSubject(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\[[^\]]*\]/g, " ")
+    .replace(/\bson\s+\d+\s+gün\b/gi, " ")
+    .replace(/\bson\s+gün\b.*$/gi, " ")
+    .replace(/\d{1,2}[:.]\d{2}/g, " ")
+    .replace(/\d+/g, " ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function senderKey(from: string): string {
+  const match = from.match(/<([^>]+)>/);
+  return (match?.[1] ?? from).toLowerCase().trim();
+}
+
 function detectSignal(
   message: GmailMessage,
 ): GmailSignal | null {
@@ -118,6 +137,7 @@ function detectSignal(
   const date = header(message, "Date");
   const snippet = message.snippet ?? "";
 
+  const subjectText = subject.toLowerCase();
   const text = `${subject} ${snippet}`.toLowerCase();
 
   const rejectedTerms = [
@@ -155,9 +175,11 @@ function detectSignal(
     "case assignment",
     "take-home assignment",
     "assessment",
+    "online assessment",
     "technical task",
     "case çalışması",
     "vaka çalışması",
+    "değerlendirme sınavı",
     "değerlendirme testi",
   ];
 
@@ -174,20 +196,41 @@ function detectSignal(
   let kind: GmailSignalKind | null = null;
   let confidence: "high" | "medium" = "medium";
 
-  if (includesAny(text, offerTerms)) {
+  // Subject is the strongest signal.
+  if (includesAny(subjectText, offerTerms)) {
     kind = "Offer";
     confidence = "high";
-  } else if (includesAny(text, rejectedTerms)) {
+  } else if (includesAny(subjectText, rejectedTerms)) {
     kind = "Rejected";
     confidence = "high";
-  } else if (includesAny(text, interviewTerms)) {
-    kind = "Interview";
-    confidence = "high";
-  } else if (includesAny(text, caseTerms)) {
+  } else if (includesAny(subjectText, caseTerms)) {
     kind = "Case";
     confidence = "high";
-  } else if (includesAny(text, appliedTerms)) {
+  } else if (includesAny(subjectText, interviewTerms)) {
+    kind = "Interview";
+    confidence = "high";
+  } else if (includesAny(subjectText, appliedTerms)) {
     kind = "Applied";
+    confidence = "high";
+  }
+
+  // Fall back to subject + snippet when the subject itself is unclear.
+  if (!kind) {
+    if (includesAny(text, offerTerms)) {
+      kind = "Offer";
+      confidence = "high";
+    } else if (includesAny(text, rejectedTerms)) {
+      kind = "Rejected";
+      confidence = "high";
+    } else if (includesAny(text, caseTerms)) {
+      kind = "Case";
+      confidence = "high";
+    } else if (includesAny(text, interviewTerms)) {
+      kind = "Interview";
+      confidence = "high";
+    } else if (includesAny(text, appliedTerms)) {
+      kind = "Applied";
+    }
   }
 
   if (!kind) return null;
@@ -203,6 +246,25 @@ function detectSignal(
     suggestedStatus: kind,
     confidence,
   };
+}
+
+function dedupeSignals(signals: GmailSignal[]): GmailSignal[] {
+  const seen = new Set<string>();
+
+  return signals.filter((signal) => {
+    const key = [
+      senderKey(signal.from),
+      signal.kind,
+      normaliseSignalSubject(signal.subject),
+    ].join("|");
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
 }
 
 async function gmailFetch<T>(
@@ -278,7 +340,9 @@ export async function scanGmailForJobSignals(): Promise<
     }),
   );
 
-  return results
+  const signals = results
     .map(detectSignal)
     .filter((signal): signal is GmailSignal => signal !== null);
+
+  return dedupeSignals(signals);
 }
