@@ -360,6 +360,7 @@ export async function scanGmailForJobSignals(): Promise<
     "OR rejected",
     "OR rejection",
     "OR başvuru",
+    "OR başvurun",
     "OR mülakat",
     "OR görüşme",
     "OR teklif",
