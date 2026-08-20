@@ -127,6 +127,8 @@ function DashboardPage() {
 
   const [gmailApplicationSelection, setGmailApplicationSelection] =
     useState<Record<string, string>>({});
+  const [gmailStatusSelection, setGmailStatusSelection] =
+    useState<Record<string, ApplicationStatus>>({});
   const [gmailApplyingId, setGmailApplyingId] = useState<string | null>(null);
 
   const [gmailNewSignalId, setGmailNewSignalId] =
@@ -341,6 +343,14 @@ function DashboardPage() {
 
       setGmailSignals(unhandledSignals);
       setGmailApplicationSelection({});
+      setGmailStatusSelection(
+        Object.fromEntries(
+          unhandledSignals.map((signal) => [
+            signal.messageId,
+            signal.suggestedStatus,
+          ]),
+        ) as Record<string, ApplicationStatus>,
+      );
       setGmailNewSignalId(null);
       setGmailNewJobTitle("");
       setGmailNewCompanyName("");
@@ -390,6 +400,10 @@ function DashboardPage() {
       return;
     }
 
+    const selectedStatus =
+      gmailStatusSelection[signal.messageId] ??
+      signal.suggestedStatus;
+
     setGmailApplyingId(signal.messageId);
     setGmailError(null);
 
@@ -403,7 +417,7 @@ function DashboardPage() {
           const updated = await updateCloudApplication(
             applicationId,
             {
-              status: signal.suggestedStatus,
+              status: selectedStatus,
             },
           );
 
@@ -415,7 +429,7 @@ function DashboardPage() {
         } else {
           setApps(
             updateApplication(applicationId, {
-              status: signal.suggestedStatus,
+              status: selectedStatus,
             }),
           );
         }
@@ -434,6 +448,12 @@ function DashboardPage() {
       );
 
       setGmailApplicationSelection((current) => {
+        const next = { ...current };
+        delete next[signal.messageId];
+        return next;
+      });
+
+      setGmailStatusSelection((current) => {
         const next = { ...current };
         delete next[signal.messageId];
         return next;
@@ -468,6 +488,9 @@ function DashboardPage() {
   ) => {
     const jobTitle = gmailNewJobTitle.trim();
     const companyName = gmailNewCompanyName.trim();
+    const selectedStatus =
+      gmailStatusSelection[signal.messageId] ??
+      signal.suggestedStatus;
 
     if (!jobTitle) {
       setGmailError(
@@ -491,7 +514,7 @@ function DashboardPage() {
         await saveApplicationForCurrentUser({
           jobTitle,
           companyName,
-          status: signal.suggestedStatus,
+          status: selectedStatus,
         });
 
       setApps((current) => [
@@ -857,7 +880,7 @@ function DashboardPage() {
                       </p>
 
                       <span className="text-xs text-[color:var(--color-muted-foreground)]">
-                        Review only · No status changed
+                        Review required · You choose what changes
                       </span>
                     </div>
 
@@ -897,12 +920,50 @@ function DashboardPage() {
 
                           <div className="w-full shrink-0 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)] p-3 sm:w-72">
                             <p className="text-xs text-[color:var(--color-muted-foreground)]">
-                              Suggested status
+                              Detected from Gmail
                             </p>
 
                             <p className="mt-0.5 text-sm font-semibold text-[color:var(--color-surface-foreground)]">
                               {signal.suggestedStatus}
                             </p>
+
+                            <label
+                              htmlFor={`gmail-status-${signal.messageId}`}
+                              className="mt-3 block text-xs font-semibold text-[color:var(--color-surface-foreground)]"
+                            >
+                              Apply as
+                            </label>
+
+                            <select
+                              id={`gmail-status-${signal.messageId}`}
+                              value={
+                                gmailStatusSelection[
+                                  signal.messageId
+                                ] ?? signal.suggestedStatus
+                              }
+                              onChange={(event) =>
+                                setGmailStatusSelection(
+                                  (current) => ({
+                                    ...current,
+                                    [signal.messageId]:
+                                      event.target
+                                        .value as ApplicationStatus,
+                                  }),
+                                )
+                              }
+                              className="mt-1.5 w-full rounded-lg border border-[color:var(--color-border)] bg-white px-2.5 py-2 text-xs font-semibold text-[color:var(--color-surface-foreground)]"
+                            >
+                              {APPLICATION_STATUSES.map(
+                                (status) => (
+                                  <option
+                                    key={status}
+                                    value={status}
+                                  >
+                                    {status}
+                                  </option>
+                                ),
+                              )}
+                            </select>
 
                             <div className="mt-3 border-t border-[color:var(--color-border)] pt-3">
                               <p className="text-xs font-semibold text-[color:var(--color-surface-foreground)]">
@@ -1005,7 +1066,12 @@ function DashboardPage() {
                                 {gmailApplyingId ===
                                 signal.messageId
                                   ? "Updating…"
-                                  : `Link & Change to ${signal.suggestedStatus}`}
+                                  : `Link & Change to ${
+                                      gmailStatusSelection[
+                                        signal.messageId
+                                      ] ??
+                                      signal.suggestedStatus
+                                    }`}
                               </button>
                             </div>
 
@@ -1064,7 +1130,9 @@ function DashboardPage() {
                                       Starting status
                                     </span>
                                     <span className="ml-2 font-semibold text-[color:var(--color-surface-foreground)]">
-                                      {signal.suggestedStatus}
+                                      {gmailStatusSelection[
+                                        signal.messageId
+                                      ] ?? signal.suggestedStatus}
                                     </span>
                                   </div>
 
