@@ -50,6 +50,10 @@ import {
   scanGmailForJobSignals,
   type GmailSignal,
 } from "@/lib/gmail";
+import {
+  loadHandledGmailMessageIds,
+  markGmailSignalHandled,
+} from "@/lib/cloud-gmail-signals";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -328,8 +332,14 @@ function DashboardPage() {
 
     try {
       const signals = await scanGmailForJobSignals();
+      const handledIds =
+        await loadHandledGmailMessageIds();
 
-      setGmailSignals(signals);
+      const unhandledSignals = signals.filter(
+        (signal) => !handledIds.has(signal.messageId),
+      );
+
+      setGmailSignals(unhandledSignals);
       setGmailApplicationSelection({});
       setGmailNewSignalId(null);
       setGmailNewJobTitle("");
@@ -409,6 +419,12 @@ function DashboardPage() {
         setApps(updatedApps);
       }
 
+      await markGmailSignalHandled({
+        messageId: signal.messageId,
+        action: "linked",
+        applicationId,
+      });
+
       setGmailSignals((current) =>
         current.filter(
           (item) => item.messageId !== signal.messageId,
@@ -483,6 +499,12 @@ function DashboardPage() {
         ),
       ]);
 
+      await markGmailSignalHandled({
+        messageId: signal.messageId,
+        action: "created",
+        applicationId: created.id,
+      });
+
       setGmailSignals((current) =>
         current.filter(
           (item) =>
@@ -507,12 +529,23 @@ function DashboardPage() {
     }
   };
 
-  const dismissGmailSignal = (signal: GmailSignal) => {
-    setGmailSignals((current) =>
-      current.filter(
-        (item) => item.messageId !== signal.messageId,
-      ),
-    );
+  const dismissGmailSignal = async (
+    signal: GmailSignal,
+  ) => {
+    setGmailApplyingId(signal.messageId);
+    setGmailError(null);
+
+    try {
+      await markGmailSignalHandled({
+        messageId: signal.messageId,
+        action: "dismissed",
+      });
+
+      setGmailSignals((current) =>
+        current.filter(
+          (item) => item.messageId !== signal.messageId,
+        ),
+      );
 
     setGmailApplicationSelection((current) => {
       const next = { ...current };
@@ -520,13 +553,23 @@ function DashboardPage() {
       return next;
     });
 
-    if (gmailNewSignalId === signal.messageId) {
-      setGmailNewSignalId(null);
-      setGmailNewJobTitle("");
-      setGmailNewCompanyName("");
-    }
+      if (gmailNewSignalId === signal.messageId) {
+        setGmailNewSignalId(null);
+        setGmailNewJobTitle("");
+        setGmailNewCompanyName("");
+      }
+    } catch (error) {
+      console.error(
+        "[JobLens Gmail] Could not dismiss signal:",
+        error,
+      );
 
-    setGmailError(null);
+      setGmailError(
+        "JobLens couldn’t dismiss this signal. Please try again.",
+      );
+    } finally {
+      setGmailApplyingId(null);
+    }
   };
 
   return (

@@ -65,6 +65,33 @@ export type Database = {
         }
         Relationships: []
       }
+      gmail_signal_actions: {
+        Row: {
+          id: string
+          user_id: string
+          message_id: string
+          action: string
+          application_id: string | null
+          handled_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string
+          message_id: string
+          action: string
+          application_id?: string | null
+          handled_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          message_id?: string
+          action?: string
+          application_id?: string | null
+          handled_at?: string
+        }
+        Relationships: []
+      }
       application_reminders: {
         Row: {
           id: string
