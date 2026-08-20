@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { LogIn, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  clearGoogleProviderToken,
+  rememberGoogleProviderToken,
+} from "@/lib/gmail";
 
 export function AuthControl() {
   const [session, setSession] = useState<Session | null>(null);
@@ -13,6 +17,7 @@ export function AuthControl() {
 
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
+      rememberGoogleProviderToken(data.session);
       setSession(data.session);
       setReady(true);
     });
@@ -45,6 +50,7 @@ export function AuthControl() {
 
   const signOut = async () => {
     setBusy(true);
+    clearGoogleProviderToken();
     await supabase.auth.signOut();
     setBusy(false);
   };

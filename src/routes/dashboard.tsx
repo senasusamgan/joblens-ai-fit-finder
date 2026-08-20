@@ -16,6 +16,8 @@ import {
   BellRing,
   AlertTriangle,
   Check,
+  Mail,
+  RefreshCw,
 } from "lucide-react";
 import { SiteNav } from "@/components/SiteNav";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,6 +38,13 @@ import {
   updateReminder,
   type Reminder,
 } from "@/lib/reminders";
+import {
+  connectGmail,
+  hasGmailToken,
+  rememberGoogleProviderToken,
+  scanGmailForJobSignals,
+  type GmailSignal,
+} from "@/lib/gmail";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -74,6 +83,12 @@ function DashboardPage() {
   const [cloudMode, setCloudMode] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const [gmailConnected, setGmailConnected] = useState(false);
+  const [gmailBusy, setGmailBusy] = useState(false);
+  const [gmailError, setGmailError] = useState<string | null>(null);
+  const [gmailSignals, setGmailSignals] = useState<GmailSignal[]>([]);
+  const [gmailScanned, setGmailScanned] = useState(false);
+
   useEffect(() => {
     let mounted = true;
 
@@ -91,7 +106,10 @@ function DashboardPage() {
 
         if (!mounted) return;
 
+        rememberGoogleProviderToken(session);
+
         setCloudMode(Boolean(session));
+        setGmailConnected(Boolean(session) && hasGmailToken());
         setApps(applications);
         setReminders(reminderList);
       } catch (error) {
@@ -100,6 +118,7 @@ function DashboardPage() {
         if (!mounted) return;
 
         setCloudMode(false);
+        setGmailConnected(false);
         setApps(loadApplications());
         setReminders(loadReminders());
         setLoadError(
@@ -114,7 +133,17 @@ function DashboardPage() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (nextSession) {
+        rememberGoogleProviderToken(nextSession);
+      }
+
+      if (event === "SIGNED_OUT") {
+        setGmailConnected(false);
+        setGmailSignals([]);
+        setGmailScanned(false);
+      }
+
       if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
         void hydrate();
       }
@@ -233,6 +262,53 @@ function DashboardPage() {
       setLoadError(
         "We couldn’t update this reminder. Please try again.",
       );
+    }
+  };
+
+  const handleConnectGmail = async () => {
+    setGmailBusy(true);
+    setGmailError(null);
+
+    try {
+      await connectGmail();
+    } catch (error) {
+      console.error("[JobLens Gmail] Connect failed:", error);
+      setGmailError(
+        "Gmail could not be connected. Please try again.",
+      );
+      setGmailBusy(false);
+    }
+  };
+
+  const handleScanGmail = async () => {
+    setGmailBusy(true);
+    setGmailError(null);
+    setGmailScanned(false);
+
+    try {
+      const signals = await scanGmailForJobSignals();
+
+      setGmailSignals(signals);
+      setGmailScanned(true);
+      setGmailConnected(true);
+    } catch (error) {
+      console.error("[JobLens Gmail] Scan failed:", error);
+
+      const message =
+        error instanceof Error ? error.message : "";
+
+      if (message === "GMAIL_AUTH_REQUIRED") {
+        setGmailConnected(false);
+        setGmailError(
+          "Gmail permission is missing or expired. Reconnect Gmail to scan again.",
+        );
+      } else {
+        setGmailError(
+          "JobLens couldn’t scan Gmail right now. Please try again.",
+        );
+      }
+    } finally {
+      setGmailBusy(false);
     }
   };
 
@@ -440,6 +516,137 @@ function DashboardPage() {
                   </div>
                 </section>
               </div>
+
+              <section className="card-surface mt-6 p-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-5 w-5 text-[color:var(--color-primary)]" />
+                      <h2 className="text-lg font-semibold">
+                        Gmail Job Signals
+                      </h2>
+                    </div>
+
+                    <p className="mt-1 max-w-2xl text-sm text-[color:var(--color-muted-foreground)]">
+                      Scan recent recruitment emails for application,
+                      interview, assessment, offer and rejection signals.
+                    </p>
+                  </div>
+
+                  {!cloudMode ? (
+                    <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)] px-4 py-2.5 text-sm text-[color:var(--color-muted-foreground)]">
+                      Sign in to connect Gmail
+                    </div>
+                  ) : !gmailConnected ? (
+                    <button
+                      type="button"
+                      onClick={handleConnectGmail}
+                      disabled={gmailBusy}
+                      className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+                      style={{ background: "var(--gradient-hero)" }}
+                    >
+                      <Mail className="h-4 w-4" />
+                      Connect Gmail
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleScanGmail}
+                      disabled={gmailBusy}
+                      className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-[color:var(--color-border)] px-4 py-2.5 text-sm font-semibold text-[color:var(--color-surface-foreground)] transition hover:bg-[color:var(--color-muted)] disabled:opacity-50"
+                    >
+                      <RefreshCw
+                        className={`h-4 w-4 ${gmailBusy ? "animate-spin" : ""}`}
+                      />
+                      {gmailBusy ? "Scanning…" : "Scan Gmail now"}
+                    </button>
+                  )}
+                </div>
+
+                <div className="mt-4 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)] px-4 py-3 text-xs text-[color:var(--color-muted-foreground)]">
+                  Gmail access is read-only. JobLens scans only when you ask
+                  and does not store email content in your tracker.
+                </div>
+
+                {gmailError && (
+                  <p className="mt-4 text-sm text-[color:var(--color-danger)]">
+                    {gmailError}
+                  </p>
+                )}
+
+                {gmailScanned && gmailSignals.length === 0 && (
+                  <div className="mt-5 rounded-xl border border-dashed border-[color:var(--color-border)] p-5">
+                    <p className="text-sm font-medium text-[color:var(--color-surface-foreground)]">
+                      No job signals found
+                    </p>
+                    <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
+                      No clear recruitment update was detected in the recent
+                      emails scanned.
+                    </p>
+                  </div>
+                )}
+
+                {gmailSignals.length > 0 && (
+                  <div className="mt-5 space-y-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <p className="text-sm font-medium text-[color:var(--color-surface-foreground)]">
+                        {gmailSignals.length} potential job{" "}
+                        {gmailSignals.length === 1 ? "signal" : "signals"}
+                      </p>
+
+                      <span className="text-xs text-[color:var(--color-muted-foreground)]">
+                        Review only · No status changed
+                      </span>
+                    </div>
+
+                    {gmailSignals.slice(0, 10).map((signal) => (
+                      <div
+                        key={signal.messageId}
+                        className="rounded-xl border border-[color:var(--color-border)] p-4"
+                      >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-full bg-[color:var(--color-primary)]/10 px-2.5 py-1 text-xs font-semibold text-[color:var(--color-primary)]">
+                                {signal.kind}
+                              </span>
+
+                              <span className="text-xs text-[color:var(--color-muted-foreground)]">
+                                {signal.confidence} confidence
+                              </span>
+                            </div>
+
+                            <p className="mt-2 break-words text-sm font-semibold text-[color:var(--color-surface-foreground)]">
+                              {signal.subject || "Recruitment email"}
+                            </p>
+
+                            {signal.from && (
+                              <p className="mt-1 break-words text-xs text-[color:var(--color-muted-foreground)]">
+                                {signal.from}
+                              </p>
+                            )}
+
+                            {signal.snippet && (
+                              <p className="mt-2 line-clamp-2 text-sm text-[color:var(--color-muted-foreground)]">
+                                {signal.snippet}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="shrink-0 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-muted)] px-3 py-2 text-xs">
+                            <span className="text-[color:var(--color-muted-foreground)]">
+                              Suggested
+                            </span>
+                            <p className="mt-0.5 font-semibold text-[color:var(--color-surface-foreground)]">
+                              {signal.suggestedStatus}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
 
               <section className="card-surface mt-6 p-6">
                 <div className="flex items-center justify-between gap-4">
