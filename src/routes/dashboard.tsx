@@ -367,13 +367,16 @@ function DashboardPage() {
     }
   };
 
-  const applyGmailSignal = async (signal: GmailSignal) => {
+  const linkGmailSignal = async (
+    signal: GmailSignal,
+    changeStatus: boolean,
+  ) => {
     const applicationId =
       gmailApplicationSelection[signal.messageId];
 
     if (!applicationId) {
       setGmailError(
-        "Choose an application before applying this Gmail signal.",
+        "Choose an application before linking this Gmail signal.",
       );
       return;
     }
@@ -395,28 +398,27 @@ function DashboardPage() {
         data: { session },
       } = await supabase.auth.getSession();
 
-      if (session) {
-        const updated = await updateCloudApplication(
-          applicationId,
-          {
-            status: signal.suggestedStatus,
-          },
-        );
+      if (changeStatus) {
+        if (session) {
+          const updated = await updateCloudApplication(
+            applicationId,
+            {
+              status: signal.suggestedStatus,
+            },
+          );
 
-        setApps((current) =>
-          current.map((app) =>
-            app.id === applicationId ? updated : app,
-          ),
-        );
-      } else {
-        const updatedApps = updateApplication(
-          applicationId,
-          {
-            status: signal.suggestedStatus,
-          },
-        );
-
-        setApps(updatedApps);
+          setApps((current) =>
+            current.map((app) =>
+              app.id === applicationId ? updated : app,
+            ),
+          );
+        } else {
+          setApps(
+            updateApplication(applicationId, {
+              status: signal.suggestedStatus,
+            }),
+          );
+        }
       }
 
       await markGmailSignalHandled({
@@ -438,12 +440,12 @@ function DashboardPage() {
       });
     } catch (error) {
       console.error(
-        "[JobLens Gmail] Could not apply signal:",
+        "[JobLens Gmail] Could not link signal:",
         error,
       );
 
       setGmailError(
-        "JobLens couldn’t update this application. Please try again.",
+        "JobLens couldn’t link this Gmail signal. Please try again.",
       );
     } finally {
       setGmailApplyingId(null);
@@ -941,10 +943,51 @@ function DashboardPage() {
                                 ))}
                               </select>
 
+                              {gmailApplicationSelection[
+                                signal.messageId
+                              ] && (
+                                <div className="mt-2 rounded-lg border border-[color:var(--color-border)] bg-white px-2.5 py-2 text-xs">
+                                  <span className="text-[color:var(--color-muted-foreground)]">
+                                    Current status
+                                  </span>
+                                  <span className="ml-2 font-semibold text-[color:var(--color-surface-foreground)]">
+                                    {
+                                      apps.find(
+                                        (app) =>
+                                          app.id ===
+                                          gmailApplicationSelection[
+                                            signal.messageId
+                                          ],
+                                      )?.status
+                                    }
+                                  </span>
+                                </div>
+                              )}
+
                               <button
                                 type="button"
                                 onClick={() =>
-                                  applyGmailSignal(signal)
+                                  linkGmailSignal(signal, false)
+                                }
+                                disabled={
+                                  !gmailApplicationSelection[
+                                    signal.messageId
+                                  ] ||
+                                  gmailApplyingId ===
+                                    signal.messageId
+                                }
+                                className="mt-2 w-full rounded-lg border border-[color:var(--color-border)] bg-white px-3 py-2 text-xs font-semibold text-[color:var(--color-surface-foreground)] transition hover:bg-[color:var(--color-muted)] disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                {gmailApplyingId ===
+                                signal.messageId
+                                  ? "Linking…"
+                                  : "Link Only"}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  linkGmailSignal(signal, true)
                                 }
                                 disabled={
                                   !gmailApplicationSelection[
@@ -962,7 +1005,7 @@ function DashboardPage() {
                                 {gmailApplyingId ===
                                 signal.messageId
                                   ? "Updating…"
-                                  : "Link & Update"}
+                                  : `Link & Change to ${signal.suggestedStatus}`}
                               </button>
                             </div>
 
