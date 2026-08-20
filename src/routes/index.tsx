@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { extractCvText, CvExtractError, MAX_CV_BYTES } from "@/lib/cv-extract";
 import { SiteNav } from "@/components/SiteNav";
-import { createApplication } from "@/lib/applications";
+import { saveApplicationForCurrentUser } from "@/lib/cloud-applications";
 
 
 export const Route = createFileRoute("/")({
@@ -234,19 +234,23 @@ function Index() {
     }
   };
 
-  const saveToApplications = () => {
+  const saveToApplications = async () => {
     if (!analysis || savedApplicationId) return;
 
-    const saved = createApplication({
-      jobTitle: jobTitle.trim(),
-      companyName: companyName.trim(),
-      jobDescription: jobDescription.trim() || undefined,
-      status: "Saved",
-      matchScore: analysis.matchScore,
-      verdict: analysis.verdict,
-    });
+    try {
+      const saved = await saveApplicationForCurrentUser({
+        jobTitle: jobTitle.trim(),
+        companyName: companyName.trim(),
+        jobDescription: jobDescription.trim() || undefined,
+        status: "Saved",
+        matchScore: analysis.matchScore,
+        verdict: analysis.verdict,
+      });
 
-    setSavedApplicationId(saved.id);
+      setSavedApplicationId(saved.id);
+    } catch (error) {
+      console.error("[JobLens] Could not save analysis to applications:", error);
+    }
   };
 
   const reset = () => {

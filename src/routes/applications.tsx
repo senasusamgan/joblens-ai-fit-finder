@@ -10,6 +10,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { SiteNav } from "@/components/SiteNav";
+import { supabase } from "@/integrations/supabase/client";
 import {
   APPLICATION_STATUSES,
   type Application,
@@ -21,6 +22,12 @@ import {
   summarise,
   updateApplication,
 } from "@/lib/applications";
+import {
+  createCloudApplication,
+  deleteCloudApplication,
+  migrateGuestApplicationsToCloud,
+  updateCloudApplication,
+} from "@/lib/cloud-applications";
 
 export const Route = createFileRoute("/applications")({
   head: () => ({
@@ -82,10 +89,61 @@ function ApplicationsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [formError, setFormError] = useState<string | null>(null);
+  const [cloudMode, setCloudMode] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   useEffect(() => {
-    setApps(loadApplications());
-    setHydrated(true);
+    let active = true;
+
+    const hydrate = async (signedIn: boolean) => {
+      setHydrated(false);
+      setSyncError(null);
+
+      try {
+        if (signedIn) {
+          const cloudApplications = await migrateGuestApplicationsToCloud();
+
+          if (!active) return;
+          setCloudMode(true);
+          setApps(cloudApplications);
+        } else {
+          if (!active) return;
+          setCloudMode(false);
+          setApps(loadApplications());
+        }
+      } catch (error) {
+        console.error("[JobLens] Cloud application sync failed:", error);
+
+        if (!active) return;
+
+        // Important safety fallback:
+        // never remove browser records if cloud migration fails.
+        setCloudMode(false);
+        setApps(loadApplications());
+        setSyncError(
+          "Cloud sync could not be completed. Your browser copies are still safe.",
+        );
+      } finally {
+        if (active) setHydrated(true);
+      }
+    };
+
+    supabase.auth.getSession().then(({ data }) => {
+      void hydrate(Boolean(data.session));
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+        void hydrate(Boolean(session));
+      }
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const stats = useMemo(() => summarise(apps), [apps]);
@@ -111,12 +169,16 @@ function ApplicationsPage() {
     setDialogOpen(true);
   };
 
-  const submitForm = (e: React.FormEvent) => {
+  const submitForm = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!form.jobTitle.trim() || !form.companyName.trim()) {
       setFormError("Job title and company are required.");
       return;
     }
+
+    setFormError(null);
+
     const payload = {
       jobTitle: form.jobTitle.trim(),
       companyName: form.companyName.trim(),
@@ -125,22 +187,67 @@ function ApplicationsPage() {
       appliedAt: form.appliedAt || undefined,
       notes: form.notes.trim() || undefined,
     };
-    if (editingId) {
-      setApps(updateApplication(editingId, payload));
-    } else {
-      createApplication(payload);
-      setApps(loadApplications());
+
+    try {
+      if (editingId) {
+        if (cloudMode) {
+          const updated = await updateCloudApplication(editingId, payload);
+          setApps((current) =>
+            current.map((app) => (app.id === editingId ? updated : app)),
+          );
+        } else {
+          setApps(updateApplication(editingId, payload));
+        }
+      } else if (cloudMode) {
+        const created = await createCloudApplication(payload);
+        setApps((current) => [created, ...current]);
+      } else {
+        createApplication(payload);
+        setApps(loadApplications());
+      }
+
+      setDialogOpen(false);
+    } catch (error) {
+      console.error("[JobLens] Application save failed:", error);
+      setFormError("We couldn’t save this application. Please try again.");
     }
-    setDialogOpen(false);
   };
 
-  const changeStatus = (id: string, status: ApplicationStatus) => {
-    setApps(updateApplication(id, { status }));
+  const changeStatus = async (id: string, status: ApplicationStatus) => {
+    try {
+      if (cloudMode) {
+        const updated = await updateCloudApplication(id, { status });
+        setApps((current) =>
+          current.map((app) => (app.id === id ? updated : app)),
+        );
+      } else {
+        setApps(updateApplication(id, { status }));
+      }
+    } catch (error) {
+      console.error("[JobLens] Status update failed:", error);
+      setSyncError("We couldn’t update this application. Please try again.");
+    }
   };
 
-  const remove = (a: Application) => {
-    if (typeof window !== "undefined" && !window.confirm(`Delete “${a.jobTitle}” at ${a.companyName}?`)) return;
-    setApps(deleteApplication(a.id));
+  const remove = async (a: Application) => {
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm(`Delete “${a.jobTitle}” at ${a.companyName}?`)
+    ) {
+      return;
+    }
+
+    try {
+      if (cloudMode) {
+        await deleteCloudApplication(a.id);
+        setApps((current) => current.filter((app) => app.id !== a.id));
+      } else {
+        setApps(deleteApplication(a.id));
+      }
+    } catch (error) {
+      console.error("[JobLens] Application delete failed:", error);
+      setSyncError("We couldn’t delete this application. Please try again.");
+    }
   };
 
   return (
@@ -242,8 +349,17 @@ function ApplicationsPage() {
             </div>
           )}
 
+          {syncError && (
+            <p className="mt-6 text-center text-sm text-[color:var(--color-warning)]">
+              {syncError}
+            </p>
+          )}
+
           <p className="mt-10 text-center text-xs text-white/40">
-            Applications are stored only in this browser. No CV text is ever saved here.
+            {cloudMode
+              ? "Signed in · Applications are synced to your account."
+              : "Guest mode · Applications are stored only in this browser."}
+            {" "}No CV text is ever saved here.
           </p>
         </div>
       </main>

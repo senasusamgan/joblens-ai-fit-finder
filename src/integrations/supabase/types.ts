@@ -14,7 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      applications: {
+        Row: {
+          id: string
+          user_id: string
+          job_title: string
+          company_name: string
+          job_url: string | null
+          status: string
+          match_score: number | null
+          verdict: string | null
+          job_description: string | null
+          applied_at: string | null
+          notes: string | null
+          source_local_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string
+          job_title: string
+          company_name?: string
+          job_url?: string | null
+          status?: string
+          match_score?: number | null
+          verdict?: string | null
+          job_description?: string | null
+          applied_at?: string | null
+          notes?: string | null
+          source_local_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          job_title?: string
+          company_name?: string
+          job_url?: string | null
+          status?: string
+          match_score?: number | null
+          verdict?: string | null
+          job_description?: string | null
+          applied_at?: string | null
+          notes?: string | null
+          source_local_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
