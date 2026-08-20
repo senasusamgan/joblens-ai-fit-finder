@@ -54,6 +54,7 @@ import {
   loadHandledGmailMessageIds,
   markGmailSignalHandled,
 } from "@/lib/cloud-gmail-signals";
+import { suggestCompanyFromSignal } from "@/lib/gmail-signal-parser";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -84,70 +85,6 @@ const statusAccent: Record<ApplicationStatus, string> = {
   Offer: "bg-[color:var(--color-success)]",
   Rejected: "bg-[color:var(--color-danger)]",
 };
-
-function cleanCompanySuggestion(value: string): string {
-  return value
-    .replace(/\s+/g, " ")
-    .replace(/^["']+|["']+$/g, "")
-    .replace(/[,:;!?]+$/g, "")
-    .trim();
-}
-
-function extractCompanyFromSignal(
-  signal: GmailSignal,
-): string | null {
-  const text = `${signal.subject}\n${signal.snippet}`;
-
-  const patterns = [
-    /başvurunuz\s+(?!alındı(?:\s|$))(.+?)\s+şirketine\s+(?:gönderildi|iletildi|görüntülendi)/i,
-    /başvurun\s+(?!alındı(?:\s|$))(.+?)\s+şirketine\s+(?:gönderildi|iletildi|görüntülendi)/i,
-    /(?:your\s+)?application(?:\s+was)?\s+(?:sent to|viewed by)\s+(.+?)(?:[.!]|$)/i,
-  ];
-
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-
-    if (match?.[1]) {
-      const company = cleanCompanySuggestion(match[1]);
-      if (company) return company;
-    }
-  }
-
-  return null;
-}
-
-function suggestCompanyFromSignal(signal: GmailSignal): string {
-  const extractedCompany = extractCompanyFromSignal(signal);
-
-  if (extractedCompany) {
-    return extractedCompany;
-  }
-
-  const displayName = signal.from
-    .split("<")[0]
-    .replace(/^["']|["']$/g, "")
-    .trim();
-
-  if (displayName && !displayName.includes("@")) {
-    return displayName
-      .replace(/^["']+|["']+$/g, "")
-      .replace(/\.(com|io)$/i, "")
-      .trim();
-  }
-
-  const emailMatch = signal.from.match(/@([^>\s]+)/);
-
-  if (!emailMatch) return "";
-
-  const domain = emailMatch[1]
-    .split(".")[0]
-    .replace(/[-_]+/g, " ")
-    .trim();
-
-  return domain
-    ? domain.charAt(0).toUpperCase() + domain.slice(1)
-    : "";
-}
 
 function DashboardPage() {
   const [apps, setApps] = useState<Application[]>([]);

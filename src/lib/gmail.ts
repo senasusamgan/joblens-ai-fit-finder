@@ -1,15 +1,14 @@
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { ApplicationStatus } from "@/lib/applications";
+import {
+  classifyGmailSignal,
+  type GmailSignalKind,
+} from "@/lib/gmail-signal-parser";
+
+export type { GmailSignalKind } from "@/lib/gmail-signal-parser";
 
 const GMAIL_TOKEN_KEY = "joblens_gmail_access_token_v1";
-
-export type GmailSignalKind =
-  | "Applied"
-  | "Interview"
-  | "Case"
-  | "Offer"
-  | "Rejected";
 
 export interface GmailSignal {
   messageId: string;
@@ -137,153 +136,13 @@ function detectSignal(
   const date = header(message, "Date");
   const snippet = message.snippet ?? "";
 
-  const subjectText = subject.toLowerCase();
-  const text = `${subject} ${snippet}`.toLowerCase();
+  const classification = classifyGmailSignal({
+    subject,
+    from,
+    snippet,
+  });
 
-  const sender = senderKey(from);
-  const isLinkedInSender =
-    sender.endsWith("@linkedin.com");
-  const isYouthallSender =
-    sender.endsWith("@youthall.com");
-
-  const youthallAppliedSignal =
-    isYouthallSender &&
-    (
-      (
-        subjectText.includes("başvurun") &&
-        subjectText.includes("alındı")
-      ) ||
-      (
-        text.includes("başvurun") &&
-        text.includes("iletildi")
-      )
-    );
-
-  const linkedInAppliedSubject =
-    isLinkedInSender &&
-    (
-      (
-        subjectText.includes("başvurunuz") &&
-        subjectText.includes("gönderildi")
-      ) ||
-      (
-        subjectText.includes("başvurunuz") &&
-        subjectText.includes("görüntülendi")
-      ) ||
-      (
-        subjectText.includes("application") &&
-        subjectText.includes("sent")
-      ) ||
-      (
-        subjectText.includes("application") &&
-        subjectText.includes("viewed")
-      )
-    );
-
-  const rejectedTerms = [
-    "unfortunately",
-    "not moving forward",
-    "not proceed",
-    "other candidates",
-    "başvurunuz olumsuz",
-    "olumsuz sonuç",
-    "başvurunuza devam edemiyoruz",
-    "başvurunuzla ilerleyemiyoruz",
-  ];
-
-  const offerTerms = [
-    "job offer",
-    "offer letter",
-    "employment offer",
-    "teklifimizi",
-    "iş teklifi",
-    "offer for",
-  ];
-
-  const interviewTerms = [
-    "interview",
-    "interview invitation",
-    "schedule a call",
-    "schedule your interview",
-    "mülakat",
-    "görüşme daveti",
-    "görüşme planlamak",
-  ];
-
-  const caseTerms = [
-    "case study",
-    "case assignment",
-    "take-home assignment",
-    "assessment",
-    "online assessment",
-    "technical task",
-    "case çalışması",
-    "vaka çalışması",
-    "değerlendirme sınavı",
-    "değerlendirme testi",
-  ];
-
-  const appliedTerms = [
-    "application received",
-    "application submitted",
-    "thank you for applying",
-    "we received your application",
-    "your application was sent",
-    "application was sent to",
-    "your application was viewed",
-    "application was viewed by",
-    "başvurunuz alınmıştır",
-    "başvurunuzu aldık",
-    "başvurunuz başarıyla",
-    "başvurunuz gönderildi",
-    "başvurunuz görüntülendi",
-  ];
-
-  let kind: GmailSignalKind | null = null;
-  let confidence: "high" | "medium" = "medium";
-
-  // Subject is the strongest signal.
-  if (includesAny(subjectText, offerTerms)) {
-    kind = "Offer";
-    confidence = "high";
-  } else if (includesAny(subjectText, rejectedTerms)) {
-    kind = "Rejected";
-    confidence = "high";
-  } else if (includesAny(subjectText, caseTerms)) {
-    kind = "Case";
-    confidence = "high";
-  } else if (includesAny(subjectText, interviewTerms)) {
-    kind = "Interview";
-    confidence = "high";
-  } else if (
-    youthallAppliedSignal ||
-    linkedInAppliedSubject ||
-    includesAny(subjectText, appliedTerms)
-  ) {
-    kind = "Applied";
-    confidence = "high";
-  }
-
-  // Fall back to subject + snippet when the subject itself is unclear.
-  if (!kind) {
-    if (includesAny(text, offerTerms)) {
-      kind = "Offer";
-      confidence = "high";
-    } else if (includesAny(text, rejectedTerms)) {
-      kind = "Rejected";
-      confidence = "high";
-    } else if (includesAny(text, caseTerms)) {
-      kind = "Case";
-      confidence = "high";
-    } else if (includesAny(text, interviewTerms)) {
-      kind = "Interview";
-      confidence = "high";
-    } else if (includesAny(text, appliedTerms)) {
-      kind = "Applied";
-    }
-  }
-
-  if (!kind) return null;
+  if (!classification) return null;
 
   return {
     messageId: message.id,
@@ -292,9 +151,9 @@ function detectSignal(
     from,
     date,
     snippet,
-    kind,
-    suggestedStatus: kind,
-    confidence,
+    kind: classification.kind,
+    suggestedStatus: classification.kind,
+    confidence: classification.confidence,
   };
 }
 
