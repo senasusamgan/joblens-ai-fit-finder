@@ -99,8 +99,8 @@ function extractCompanyFromSignal(
   const text = `${signal.subject}\n${signal.snippet}`;
 
   const patterns = [
-    /başvurunuz\s+(?!alındı\b)(.+?)\s+şirketine\s+(?:gönderildi|iletildi|görüntülendi)/i,
-    /başvurun\s+(?!alındı\b)(.+?)\s+şirketine\s+(?:gönderildi|iletildi|görüntülendi)/i,
+    /başvurunuz\s+(?!alındı(?:\s|$))(.+?)\s+şirketine\s+(?:gönderildi|iletildi|görüntülendi)/i,
+    /başvurun\s+(?!alındı(?:\s|$))(.+?)\s+şirketine\s+(?:gönderildi|iletildi|görüntülendi)/i,
     /(?:your\s+)?application(?:\s+was)?\s+(?:sent to|viewed by)\s+(.+?)(?:[.!]|$)/i,
   ];
 
