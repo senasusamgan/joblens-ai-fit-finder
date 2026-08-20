@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Sparkles, LayoutList } from "lucide-react";
+import { Sparkles, LayoutDashboard, LayoutList } from "lucide-react";
 import { AuthControl } from "@/components/AuthControl";
 
 const linkBase =
@@ -34,6 +34,14 @@ export function SiteNav() {
           >
             <Sparkles className="h-4 w-4" aria-hidden />
             Analyze
+          </Link>
+          <Link
+            to="/dashboard"
+            className={linkBase}
+            activeProps={{ className: "bg-white/10 text-white" }}
+          >
+            <LayoutDashboard className="h-4 w-4" aria-hidden />
+            <span className="hidden md:inline">Dashboard</span>
           </Link>
           <Link
             to="/applications"
