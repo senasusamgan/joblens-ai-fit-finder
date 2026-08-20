@@ -89,6 +89,7 @@ function suggestCompanyFromSignal(signal: GmailSignal): string {
 
   if (displayName && !displayName.includes("@")) {
     return displayName
+      .replace(/^["']+|["']+$/g, "")
       .replace(/\.(com|io)$/i, "")
       .trim();
   }
