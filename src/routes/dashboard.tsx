@@ -47,7 +47,7 @@ const ACTIVE_STATUSES: ApplicationStatus[] = [
 ];
 
 const statusAccent: Record<ApplicationStatus, string> = {
-  Saved: "bg-white/30",
+  Saved: "bg-[color:var(--color-muted-foreground)]",
   Applied: "bg-[color:var(--color-info)]",
   Interview: "bg-[color:var(--color-primary)]",
   Case: "bg-[color:var(--color-accent)]",
