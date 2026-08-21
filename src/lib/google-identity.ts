@@ -151,14 +151,18 @@ export async function renderGoogleSignInButton(
     },
   });
 
+  const isCompactViewport = window.matchMedia(
+    "(max-width: 767px)",
+  ).matches;
+
   google.accounts.id.renderButton(container, {
-    type: "standard",
+    type: isCompactViewport ? "icon" : "standard",
     theme: "outline",
-    size: "large",
+    size: isCompactViewport ? "medium" : "large",
     text: "signin_with",
-    shape: "pill",
+    shape: isCompactViewport ? "circle" : "pill",
     logo_alignment: "left",
-    width: 280,
+    width: isCompactViewport ? undefined : 280,
   });
 }
 
