@@ -92,6 +92,42 @@ export type Database = {
         }
         Relationships: []
       }
+      application_events: {
+        Row: {
+          id: string
+          user_id: string
+          application_id: string
+          event_type: string
+          source: string
+          from_status: string | null
+          to_status: string | null
+          occurred_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string
+          application_id: string
+          event_type: string
+          source?: string
+          from_status?: string | null
+          to_status?: string | null
+          occurred_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          application_id?: string
+          event_type?: string
+          source?: string
+          from_status?: string | null
+          to_status?: string | null
+          occurred_at?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       application_reminders: {
         Row: {
           id: string
