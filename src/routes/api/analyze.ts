@@ -88,8 +88,32 @@ export const Route = createFileRoute("/api/analyze")({
           const { jobTitle, companyName, cv, jobDescription, language } = parsed.data;
 
           const key = process.env.LOVABLE_API_KEY;
+
+          // Cloudflare deployment does not have Lovable's private AI gateway key.
+          // In that environment, proxy the analysis request to the existing
+          // Lovable-hosted server endpoint so the key never reaches the browser.
           if (!key) {
-            return Response.json({ error: "AI is not configured." }, { status: 500 });
+            const upstream = await fetch(
+              "https://joblens-ai-fit-finder.lovable.app/api/analyze",
+              {
+                method: "POST",
+                headers: {
+                  "content-type": "application/json",
+                },
+                body: JSON.stringify(parsed.data),
+              },
+            );
+
+            const responseBody = await upstream.text();
+
+            return new Response(responseBody, {
+              status: upstream.status,
+              headers: {
+                "content-type":
+                  upstream.headers.get("content-type") ?? "application/json",
+                "cache-control": "no-store",
+              },
+            });
           }
 
           const gateway = createLovableAiGatewayProvider(key);
