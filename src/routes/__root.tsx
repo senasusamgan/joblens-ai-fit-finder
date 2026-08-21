@@ -77,20 +77,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "JobLens AI — Know your fit. Improve your application." },
+      { title: "JobLens AI" },
       {
         name: "description",
         content: "Honest, explainable application feedback for students and recent graduates.",
       },
       { name: "author", content: "JobLens AI" },
-      { property: "og:title", content: "JobLens AI — Know your fit. Improve your application." },
+      { property: "og:title", content: "JobLens AI" },
       {
         property: "og:description",
         content: "Honest, explainable application feedback for students and recent graduates.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "JobLens AI — Know your fit. Improve your application." },
+      { name: "twitter:title", content: "JobLens AI" },
       { name: "description", content: "JobLens AI provides honest, AI-driven job application analysis for students and recent graduates." },
       { property: "og:description", content: "JobLens AI provides honest, AI-driven job application analysis for students and recent graduates." },
       { name: "twitter:description", content: "JobLens AI provides honest, AI-driven job application analysis for students and recent graduates." },
