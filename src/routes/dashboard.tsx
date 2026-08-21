@@ -54,6 +54,7 @@ import {
   markGmailSignalHandled,
 } from "@/lib/cloud-gmail-signals";
 import { suggestCompanyFromSignal } from "@/lib/gmail-signal-parser";
+import { recordApplicationEvent } from "@/lib/application-events";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -400,6 +401,26 @@ function DashboardPage() {
               app.id === applicationId ? updated : app,
             ),
           );
+
+          if (application.status !== updated.status) {
+            try {
+              await recordApplicationEvent({
+                applicationId,
+                eventType: "status_change",
+                source: "gmail",
+                fromStatus: application.status,
+                toStatus: updated.status,
+              });
+            } catch (eventError) {
+              console.error(
+                "[JobLens Timeline] Could not record Gmail status change:",
+                eventError,
+              );
+              setGmailError(
+                "Status changed, but its timeline history could not be saved.",
+              );
+            }
+          }
         } else {
           setApps(
             updateApplication(applicationId, {
@@ -497,6 +518,30 @@ function DashboardPage() {
           (app) => app.id !== created.id,
         ),
       ]);
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session) {
+        try {
+          await recordApplicationEvent({
+            applicationId: created.id,
+            eventType: "created",
+            source: "gmail",
+            toStatus: created.status,
+            occurredAt: created.createdAt,
+          });
+        } catch (eventError) {
+          console.error(
+            "[JobLens Timeline] Could not record Gmail-created application:",
+            eventError,
+          );
+          setGmailError(
+            "Application added, but its timeline history could not be created.",
+          );
+        }
+      }
 
       await markGmailSignalHandled({
         messageId: signal.messageId,

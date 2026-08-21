@@ -9,6 +9,7 @@ import {
   X,
   Sparkles,
   Bell,
+  History,
 } from "lucide-react";
 import { SiteNav } from "@/components/SiteNav";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,6 +31,11 @@ import {
   updateCloudApplication,
 } from "@/lib/cloud-applications";
 import { createReminderForCurrentUser } from "@/lib/cloud-reminders";
+import {
+  loadApplicationEvents,
+  recordApplicationEvent,
+  type ApplicationEvent,
+} from "@/lib/application-events";
 import { deleteRemindersForApplication } from "@/lib/reminders";
 
 export const Route = createFileRoute("/applications")({
@@ -100,6 +106,14 @@ function ApplicationsPage() {
   const [reminderDueAt, setReminderDueAt] = useState("");
   const [reminderError, setReminderError] = useState<string | null>(null);
   const [reminderBusy, setReminderBusy] = useState(false);
+
+  const [timelineApp, setTimelineApp] =
+    useState<Application | null>(null);
+  const [timelineEvents, setTimelineEvents] =
+    useState<ApplicationEvent[]>([]);
+  const [timelineBusy, setTimelineBusy] = useState(false);
+  const [timelineError, setTimelineError] =
+    useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -199,17 +213,64 @@ function ApplicationsPage() {
 
     try {
       if (editingId) {
+        const previous = apps.find((app) => app.id === editingId);
+
         if (cloudMode) {
           const updated = await updateCloudApplication(editingId, payload);
+
           setApps((current) =>
-            current.map((app) => (app.id === editingId ? updated : app)),
+            current.map((app) =>
+              app.id === editingId ? updated : app,
+            ),
           );
+
+          if (
+            previous &&
+            previous.status !== updated.status
+          ) {
+            try {
+              await recordApplicationEvent({
+                applicationId: editingId,
+                eventType: "status_change",
+                source: "manual",
+                fromStatus: previous.status,
+                toStatus: updated.status,
+              });
+            } catch (eventError) {
+              console.error(
+                "[JobLens Timeline] Could not record manual status change:",
+                eventError,
+              );
+              setSyncError(
+                "Application updated, but its timeline history could not be saved.",
+              );
+            }
+          }
         } else {
           setApps(updateApplication(editingId, payload));
         }
       } else if (cloudMode) {
         const created = await createCloudApplication(payload);
+
         setApps((current) => [created, ...current]);
+
+        try {
+          await recordApplicationEvent({
+            applicationId: created.id,
+            eventType: "created",
+            source: "manual",
+            toStatus: created.status,
+            occurredAt: created.createdAt,
+          });
+        } catch (eventError) {
+          console.error(
+            "[JobLens Timeline] Could not record application creation:",
+            eventError,
+          );
+          setSyncError(
+            "Application saved, but its timeline history could not be created.",
+          );
+        }
       } else {
         createApplication(payload);
         setApps(loadApplications());
@@ -224,11 +285,39 @@ function ApplicationsPage() {
 
   const changeStatus = async (id: string, status: ApplicationStatus) => {
     try {
+      const previous = apps.find((app) => app.id === id);
+
       if (cloudMode) {
         const updated = await updateCloudApplication(id, { status });
+
         setApps((current) =>
-          current.map((app) => (app.id === id ? updated : app)),
+          current.map((app) =>
+            app.id === id ? updated : app,
+          ),
         );
+
+        if (
+          previous &&
+          previous.status !== updated.status
+        ) {
+          try {
+            await recordApplicationEvent({
+              applicationId: id,
+              eventType: "status_change",
+              source: "manual",
+              fromStatus: previous.status,
+              toStatus: updated.status,
+            });
+          } catch (eventError) {
+            console.error(
+              "[JobLens Timeline] Could not record manual status change:",
+              eventError,
+            );
+            setSyncError(
+              "Status updated, but its timeline history could not be saved.",
+            );
+          }
+        }
       } else {
         setApps(updateApplication(id, { status }));
       }
@@ -257,6 +346,36 @@ function ApplicationsPage() {
     } catch (error) {
       console.error("[JobLens] Application delete failed:", error);
       setSyncError("We couldn’t delete this application. Please try again.");
+    }
+  };
+
+  const openTimeline = async (app: Application) => {
+    setTimelineApp(app);
+    setTimelineEvents([]);
+    setTimelineError(null);
+
+    if (!cloudMode) {
+      setTimelineError(
+        "Sign in to keep application history synced across devices.",
+      );
+      return;
+    }
+
+    setTimelineBusy(true);
+
+    try {
+      const events = await loadApplicationEvents(app.id);
+      setTimelineEvents(events);
+    } catch (error) {
+      console.error(
+        "[JobLens Timeline] Could not load application history:",
+        error,
+      );
+      setTimelineError(
+        "We couldn’t load this application’s timeline.",
+      );
+    } finally {
+      setTimelineBusy(false);
     }
   };
 
@@ -408,6 +527,7 @@ function ApplicationsPage() {
                             onEdit={openEdit}
                             onDelete={remove}
                             onReminder={openReminder}
+                            onTimeline={openTimeline}
                           />
                         ))
                       )}
@@ -432,6 +552,142 @@ function ApplicationsPage() {
           </p>
         </div>
       </main>
+
+      {timelineApp && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="timeline-dialog-title"
+          onMouseDown={(e) => {
+            if (
+              e.target === e.currentTarget &&
+              !timelineBusy
+            ) {
+              setTimelineApp(null);
+            }
+          }}
+        >
+          <div className="card-surface max-h-[85vh] w-full max-w-lg overflow-y-auto p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <History
+                    className="h-5 w-5 text-[color:var(--color-primary)]"
+                    aria-hidden
+                  />
+                  <h2
+                    id="timeline-dialog-title"
+                    className="text-xl font-semibold"
+                  >
+                    Application timeline
+                  </h2>
+                </div>
+
+                <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
+                  {timelineApp.jobTitle}
+                  {timelineApp.companyName
+                    ? ` · ${timelineApp.companyName}`
+                    : ""}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setTimelineApp(null)}
+                disabled={timelineBusy}
+                aria-label="Close application timeline"
+                className="rounded-lg p-1.5 text-[color:var(--color-muted-foreground)] hover:bg-[color:var(--color-muted)]"
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+
+            <div className="mt-6">
+              {timelineBusy ? (
+                <p className="py-8 text-center text-sm text-[color:var(--color-muted-foreground)]">
+                  Loading history…
+                </p>
+              ) : timelineError ? (
+                <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/50 p-4">
+                  <p className="text-sm text-[color:var(--color-muted-foreground)]">
+                    {timelineError}
+                  </p>
+                </div>
+              ) : timelineEvents.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-[color:var(--color-border)] p-5 text-center">
+                  <History
+                    className="mx-auto h-5 w-5 text-[color:var(--color-muted-foreground)]"
+                    aria-hidden
+                  />
+                  <p className="mt-2 text-sm font-medium">
+                    No recorded history yet
+                  </p>
+                  <p className="mt-1 text-xs text-[color:var(--color-muted-foreground)]">
+                    Future status changes will appear here automatically.
+                  </p>
+                </div>
+              ) : (
+                <ol className="relative ml-2 border-l border-[color:var(--color-border)]">
+                  {timelineEvents.map((event) => (
+                    <li
+                      key={event.id}
+                      className="relative ml-6 pb-7 last:pb-0"
+                    >
+                      <span
+                        className="absolute -left-[1.86rem] top-1.5 h-3 w-3 rounded-full ring-4 ring-[color:var(--color-surface)]"
+                        style={{
+                          background:
+                            "var(--color-primary)",
+                        }}
+                        aria-hidden
+                      />
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold">
+                          {event.eventType === "created"
+                            ? "Application created"
+                            : `${event.fromStatus ?? "Previous"} → ${event.toStatus ?? "Updated"}`}
+                        </p>
+
+                        <span className="rounded-full border border-[color:var(--color-border)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[color:var(--color-muted-foreground)]">
+                          {event.source}
+                        </span>
+                      </div>
+
+                      {event.eventType === "created" &&
+                        event.toStatus && (
+                          <p className="mt-1 text-xs text-[color:var(--color-muted-foreground)]">
+                            Starting stage: {event.toStatus}
+                          </p>
+                        )}
+
+                      <time className="mt-1 block text-[11px] text-[color:var(--color-muted-foreground)]">
+                        {new Date(
+                          event.occurredAt,
+                        ).toLocaleString(undefined, {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </time>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+
+            <div className="mt-6 border-t border-[color:var(--color-border)] pt-4">
+              <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                Timeline stores application stage history only.
+                Gmail message content is not saved here.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {reminderApp && (
         <div
@@ -691,12 +947,14 @@ function AppCard({
   onEdit,
   onDelete,
   onReminder,
+  onTimeline,
 }: {
   app: Application;
   onStatus: (id: string, s: ApplicationStatus) => void;
   onEdit: (a: Application) => void;
   onDelete: (a: Application) => void;
   onReminder: (a: Application) => void;
+  onTimeline: (a: Application) => void;
 }) {
   const date = app.appliedAt ? formatDate(app.appliedAt) : formatDate(app.createdAt);
   return (
@@ -758,6 +1016,15 @@ function AppCard({
             <ExternalLink className="h-3.5 w-3.5" aria-hidden />
           </a>
         )}
+        <button
+          type="button"
+          onClick={() => onTimeline(app)}
+          aria-label={`View timeline for ${app.jobTitle}`}
+          title="View timeline"
+          className="rounded-lg border border-[color:var(--color-border)] p-1.5 text-[color:var(--color-muted-foreground)] hover:bg-[color:var(--color-muted)]"
+        >
+          <History className="h-3.5 w-3.5" aria-hidden />
+        </button>
         <button
           type="button"
           onClick={() => onReminder(app)}
