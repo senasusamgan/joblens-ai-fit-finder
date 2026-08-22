@@ -37,6 +37,7 @@ import {
   type ApplicationEvent,
 } from "@/lib/application-events";
 import { deleteRemindersForApplication } from "@/lib/reminders";
+import { getNextBestAction } from "@/lib/next-best-action";
 
 export const Route = createFileRoute("/applications")({
   head: () => ({
@@ -170,6 +171,14 @@ function ApplicationsPage() {
   }, []);
 
   const stats = useMemo(() => summarise(apps), [apps]);
+
+  const attentionApps = useMemo(
+    () =>
+      apps.filter(
+        (app) => getNextBestAction(app).priority === "high",
+      ),
+    [apps],
+  );
 
   const openAdd = () => {
     setEditingId(null);
@@ -468,6 +477,36 @@ function ApplicationsPage() {
             <Stat label="Interviews" value={stats.interviews} />
             <Stat label="Offers" value={stats.offers} />
           </div>
+
+          {hydrated && attentionApps.length > 0 && (
+            <div className="mt-4 rounded-2xl border border-[color:var(--color-primary)]/20 bg-[color:var(--color-primary)]/10 px-5 py-4">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[color:var(--color-primary)]/15 text-[color:var(--color-primary)]">
+                  <Sparkles className="h-4 w-4" aria-hidden />
+                </div>
+
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white">
+                    {attentionApps.length} application{attentionApps.length === 1 ? "" : "s"} need your attention
+                  </p>
+
+                  <p className="mt-1 text-sm text-white/60">
+                    {attentionApps
+                      .slice(0, 3)
+                      .map((app) => app.companyName || app.jobTitle)
+                      .join(", ")}
+                    {attentionApps.length > 3
+                      ? ` +${attentionApps.length - 3} more`
+                      : ""}
+                  </p>
+
+                  <p className="mt-1 text-xs text-white/45">
+                    Review the highlighted next actions below.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {!hydrated ? null : apps.length === 0 ? (
             <div className="card-surface mt-8 p-10 text-center">
@@ -957,6 +996,20 @@ function AppCard({
   onTimeline: (a: Application) => void;
 }) {
   const date = app.appliedAt ? formatDate(app.appliedAt) : formatDate(app.createdAt);
+  const dateLabel = app.appliedAt
+    ? "Applied"
+    : app.status === "Saved"
+      ? "Saved"
+      : "Added";
+  const nextAction = getNextBestAction(app);
+
+  const nextActionTone =
+    nextAction.priority === "high"
+      ? "border-[color:var(--color-warning)]/25 bg-[color:var(--color-warning)]/10"
+      : nextAction.priority === "medium"
+        ? "border-[color:var(--color-primary)]/20 bg-[color:var(--color-primary)]/5"
+        : "border-[color:var(--color-border)] bg-[color:var(--color-muted)]/40";
+
   return (
     <article className="card-surface p-4">
       <div className="flex items-start justify-between gap-2">
@@ -986,8 +1039,53 @@ function AppCard({
       )}
 
       <p className="mt-2 text-[11px] text-[color:var(--color-muted-foreground)]">
-        {app.appliedAt ? "Applied" : "Saved"} {date}
+        {dateLabel} {date}
       </p>
+
+      <div className={`mt-3 rounded-xl border p-3 ${nextActionTone}`}>
+        <div className="flex items-center gap-1.5">
+          <Sparkles
+            className="h-3.5 w-3.5 text-[color:var(--color-primary)]"
+            aria-hidden
+          />
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--color-muted-foreground)]">
+            Next best action
+          </p>
+        </div>
+
+        <p className="mt-1.5 text-xs font-semibold">
+          {nextAction.title}
+        </p>
+
+        <p className="mt-1 text-[11px] leading-relaxed text-[color:var(--color-muted-foreground)]">
+          {nextAction.description}
+        </p>
+
+        {nextAction.kind === "analyze" && nextAction.ctaLabel ? (
+          <Link
+            to="/"
+            className="mt-2 inline-flex text-[11px] font-semibold text-[color:var(--color-primary)] hover:underline"
+          >
+            {nextAction.ctaLabel} →
+          </Link>
+        ) : nextAction.kind === "reminder" && nextAction.ctaLabel ? (
+          <button
+            type="button"
+            onClick={() => onReminder(app)}
+            className="mt-2 inline-flex text-[11px] font-semibold text-[color:var(--color-primary)] hover:underline"
+          >
+            {nextAction.ctaLabel} →
+          </button>
+        ) : nextAction.kind === "edit" && nextAction.ctaLabel ? (
+          <button
+            type="button"
+            onClick={() => onEdit(app)}
+            className="mt-2 inline-flex text-[11px] font-semibold text-[color:var(--color-primary)] hover:underline"
+          >
+            {nextAction.ctaLabel} →
+          </button>
+        ) : null}
+      </div>
 
       <div className="mt-3 flex items-center gap-2">
         <label className="sr-only" htmlFor={`status-${app.id}`}>
