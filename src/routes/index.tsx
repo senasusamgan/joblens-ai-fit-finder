@@ -784,7 +784,15 @@ function Index() {
       </main>
 
       <footer className="px-6 pb-10 text-center text-xs text-white/40">
-        JobLens AI · Estimates only — not an official ATS assessment or hiring decision.
+        <p>JobLens AI · Estimates only — not an official ATS assessment or hiring decision.</p>
+        <div className="mt-3 flex justify-center gap-4">
+          <Link to="/privacy" className="underline underline-offset-4 hover:text-white/70">
+            Privacy Policy
+          </Link>
+          <Link to="/terms" className="underline underline-offset-4 hover:text-white/70">
+            Terms of Service
+          </Link>
+        </div>
       </footer>
 
       <style>{`
