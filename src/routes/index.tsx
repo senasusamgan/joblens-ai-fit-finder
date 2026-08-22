@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { extractCvText, CvExtractError, MAX_CV_BYTES } from "@/lib/cv-extract";
 import { SiteNav } from "@/components/SiteNav";
 import { saveApplicationForCurrentUser } from "@/lib/cloud-applications";
+import { buildMatchDecisionBrief } from "@/lib/match-decision-brief";
 
 
 export const Route = createFileRoute("/")({
@@ -152,6 +153,10 @@ function Index() {
   const t = T[analysisLang];
 
   const activeCv = cvMode === "upload" ? cvFileText : cv;
+
+  const decisionBrief = analysis
+    ? buildMatchDecisionBrief(analysis, analysisLang)
+    : null;
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -636,6 +641,69 @@ function Index() {
                 )}
               </div>
             </div>
+
+            {decisionBrief && (
+              <div className="card-surface p-6 md:p-8">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--color-primary)]">
+                    {analysisLang === "Turkish"
+                      ? "Karar Özeti"
+                      : "Decision Brief"}
+                  </p>
+                  <h2 className="mt-1 text-xl font-semibold">
+                    {analysisLang === "Turkish"
+                      ? "Bu başvuruda neye odaklanmalısın?"
+                      : "What matters most for this application?"}
+                  </h2>
+                </div>
+
+                <div className="mt-5 grid gap-3 md:grid-cols-3">
+                  <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/40 p-4">
+                    <p className="text-xs font-medium text-[color:var(--color-muted-foreground)]">
+                      {analysisLang === "Turkish"
+                        ? "Kanıt gücü"
+                        : "Evidence strength"}
+                    </p>
+                    <p className="mt-1 text-base font-semibold">
+                      {decisionBrief.evidenceStrengthLabel}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/40 p-4 md:col-span-2">
+                    <p className="text-xs font-medium text-[color:var(--color-muted-foreground)]">
+                      {analysisLang === "Turkish"
+                        ? "Ana risk"
+                        : "Main risk"}
+                    </p>
+                    <p className="mt-1 text-sm leading-relaxed">
+                      {decisionBrief.mainRisk}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 rounded-xl border border-[color:var(--color-primary)]/20 bg-[color:var(--color-primary)]/5 p-4">
+                  <p className="text-xs font-medium text-[color:var(--color-primary)]">
+                    {analysisLang === "Turkish"
+                      ? "En iyi sonraki adım"
+                      : "Best next move"}
+                  </p>
+                  <p className="mt-1 text-sm font-medium leading-relaxed">
+                    {decisionBrief.bestNextMove}
+                  </p>
+                </div>
+
+                <div className="mt-3 rounded-xl border border-[color:var(--color-border)] p-4">
+                  <p className="text-xs font-medium text-[color:var(--color-muted-foreground)]">
+                    {analysisLang === "Turkish"
+                      ? "İşe alım perspektifi"
+                      : "Recruiter perspective"}
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-[color:var(--color-surface-foreground)]">
+                    {decisionBrief.recruiterPerspective}
+                  </p>
+                </div>
+              </div>
+            )}
 
             <ResultCard title={t.strongMatches} accent="success" count={analysis.strongMatches.length}>
               {analysis.strongMatches.length === 0 ? (
