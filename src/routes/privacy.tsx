@@ -116,7 +116,50 @@ function PrivacyPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-foreground">
-              7. Third-party services
+              7. Google API Services User Data and Limited Use
+            </h2>
+            <p className="mt-3">
+              JobLens AI's use and transfer of information received from Google
+              APIs adheres to the Google API Services User Data Policy,
+              including the Limited Use requirements.
+            </p>
+            <p className="mt-3">
+              Google user data is used only to provide or improve the
+              user-facing features that you explicitly request. JobLens AI does
+              not sell Google user data, use it for advertising, or transfer it
+              to advertising platforms, data brokers, or other parties for
+              advertising purposes.
+            </p>
+            <p className="mt-3">
+              Gmail-derived information is not used to train generalized AI or
+              machine-learning models. Human access to Gmail-derived data is
+              prohibited except when required for security or abuse
+              investigation, legal compliance, or when you explicitly request
+              support that requires such access.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-foreground">
+              8. Gmail token storage, retention, and revocation
+            </h2>
+            <p className="mt-3">
+              The Gmail access token used by the optional scanner is kept in
+              browser session storage rather than stored in the JobLens AI
+              application database. JobLens AI does not request Gmail access in
+              the background when you have not initiated a scan.
+            </p>
+            <p className="mt-3">
+              You can revoke JobLens AI's access to your Google Account at any
+              time through your Google Account permissions. Revoking access
+              prevents future Gmail API access until you choose to connect
+              Gmail again.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-foreground">
+              9. Third-party services
             </h2>
             <p className="mt-3">
               JobLens AI relies on third-party infrastructure and authentication
@@ -128,7 +171,7 @@ function PrivacyPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-foreground">
-              8. Changes to this policy
+              10. Changes to this policy
             </h2>
             <p className="mt-3">
               This Privacy Policy may be updated as JobLens AI evolves. The
