@@ -1,9 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { extractCvText, CvExtractError, MAX_CV_BYTES } from "@/lib/cv-extract";
 import { SiteNav } from "@/components/SiteNav";
 import { saveApplicationForCurrentUser } from "@/lib/cloud-applications";
 import { buildMatchDecisionBrief } from "@/lib/match-decision-brief";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  loadSearchGoalsForCurrentUser,
+} from "@/lib/cloud-search-goals";
+import {
+  DEFAULT_SEARCH_GOALS,
+  type SearchGoals,
+} from "@/lib/search-goals";
+import {
+  buildTargetRoleFit,
+} from "@/lib/target-role-fit";
 
 
 export const Route = createFileRoute("/")({
@@ -154,6 +165,50 @@ function Index() {
   const [copied, setCopied] = useState(false);
   const [copiedCvSuggestion, setCopiedCvSuggestion] = useState<number | null>(null);
   const [savedApplicationId, setSavedApplicationId] = useState<string | null>(null);
+  const [searchGoals, setSearchGoals] =
+    useState<SearchGoals>({
+      ...DEFAULT_SEARCH_GOALS,
+    });
+
+  useEffect(() => {
+    let active = true;
+
+    const hydrateGoals = async () => {
+      try {
+        const loaded =
+          await loadSearchGoalsForCurrentUser();
+
+        if (active) {
+          setSearchGoals(loaded);
+        }
+      } catch (error) {
+        console.error(
+          "[JobLens Target Fit] Could not load search goals:",
+          error,
+        );
+      }
+    };
+
+    void hydrateGoals();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      (event) => {
+        if (
+          event === "SIGNED_IN" ||
+          event === "SIGNED_OUT"
+        ) {
+          void hydrateGoals();
+        }
+      },
+    );
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   // CV input mode
   const [cvMode, setCvMode] = useState<"paste" | "upload">("paste");
@@ -172,6 +227,55 @@ function Index() {
   const decisionBrief = analysis
     ? buildMatchDecisionBrief(analysis, analysisLang)
     : null;
+
+  const targetRoleFit =
+    buildTargetRoleFit(
+      jobTitle,
+      searchGoals.targetRoles,
+    );
+
+  const targetRoleFitLabel =
+    targetRoleFit.level === "strong"
+      ? analysisLang === "Turkish"
+        ? "Hedefinle Güçlü Uyum"
+        : "Strong Direction Fit"
+      : targetRoleFit.level === "adjacent"
+        ? analysisLang === "Turkish"
+          ? "Hedefine Yakın"
+          : "Adjacent to Your Target"
+        : targetRoleFit.level === "outside"
+          ? analysisLang === "Turkish"
+            ? "Ana Hedefinin Dışında"
+            : "Outside Your Main Target"
+          : analysisLang === "Turkish"
+            ? "Henüz Hedef Belirlenmedi"
+            : "No Career Target Yet";
+
+  const targetRoleFitTone =
+    targetRoleFit.level === "strong"
+      ? "border-[color:var(--color-success)]/30 bg-[color:var(--color-success)]/10"
+      : targetRoleFit.level === "adjacent"
+        ? "border-[color:var(--color-warning)]/35 bg-[color:var(--color-warning)]/10"
+        : targetRoleFit.level === "outside"
+          ? "border-[color:var(--color-border)] bg-[color:var(--color-muted)]/40"
+          : "border-dashed border-[color:var(--color-border)]";
+
+  const targetRoleFitDescription =
+    targetRoleFit.level === "strong"
+      ? analysisLang === "Turkish"
+        ? "Bu rol, belirlediğin kariyer yönlerinden biriyle güçlü biçimde örtüşüyor."
+        : "This role strongly aligns with one of the career directions you chose."
+      : targetRoleFit.level === "adjacent"
+        ? analysisLang === "Turkish"
+          ? "Bu rol ana hedefinle birebir aynı değil, ancak yakın ve aktarılabilir bir kariyer yönü olabilir."
+          : "This role is not an exact target, but it sits close to your chosen direction."
+        : targetRoleFit.level === "outside"
+          ? analysisLang === "Turkish"
+            ? "Bu rol mevcut hedef rollerinden belirgin biçimde farklı. Bu kötü olduğu anlamına gelmez; sadece stratejik hedefinin dışında."
+            : "This role differs from your current target roles. That does not make it a bad opportunity — it is simply outside your stated strategy."
+          : analysisLang === "Turkish"
+            ? "JobLens'ın ilanları kariyer yönünle karşılaştırabilmesi için hedef rollerini belirle."
+            : "Set target roles so JobLens can compare opportunities with your intended career direction.";
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -663,6 +767,71 @@ function Index() {
                     {analysisLang === "Turkish" ? "Başvuruları Gör →" : "View Applications →"}
                   </Link>
                 )}
+              </div>
+            </div>
+
+            <div
+              className={`rounded-2xl border p-6 md:p-7 ${targetRoleFitTone}`}
+            >
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--color-primary)]">
+                    {analysisLang === "Turkish"
+                      ? "Kariyer Yönü Uyumu"
+                      : "Career Direction Fit"}
+                  </p>
+
+                  <h2 className="mt-1 text-lg font-semibold">
+                    {targetRoleFitLabel}
+                  </h2>
+
+                  <p className="mt-2 max-w-xl text-sm leading-relaxed text-[color:var(--color-muted-foreground)]">
+                    {targetRoleFitDescription}
+                  </p>
+
+                  {targetRoleFit.matchedTargetRole &&
+                    targetRoleFit.level !== "not_set" && (
+                      <p className="mt-3 text-xs text-[color:var(--color-muted-foreground)]">
+                        {analysisLang === "Turkish"
+                          ? "En yakın hedef rol:"
+                          : "Closest target role:"}{" "}
+                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">
+                          {targetRoleFit.matchedTargetRole}
+                        </span>
+                      </p>
+                    )}
+                </div>
+
+                {targetRoleFit.score !== null ? (
+                  <div className="shrink-0 text-left sm:text-right">
+                    <p className="text-3xl font-semibold">
+                      {targetRoleFit.score}%
+                    </p>
+
+                    <p className="mt-1 text-xs text-[color:var(--color-muted-foreground)]">
+                      {analysisLang === "Turkish"
+                        ? "hedef rol benzerliği"
+                        : "target-role similarity"}
+                    </p>
+                  </div>
+                ) : (
+                  <Link
+                    to="/goals"
+                    className="inline-flex shrink-0 items-center justify-center rounded-xl border border-[color:var(--color-border)] px-4 py-2.5 text-sm font-semibold transition hover:bg-[color:var(--color-muted)]"
+                  >
+                    {analysisLang === "Turkish"
+                      ? "Hedeflerini Belirle →"
+                      : "Set Your Goals →"}
+                  </Link>
+                )}
+              </div>
+
+              <div className="mt-4 border-t border-[color:var(--color-border)] pt-3">
+                <p className="text-[11px] leading-relaxed text-[color:var(--color-muted-foreground)]">
+                  {analysisLang === "Turkish"
+                    ? "Bu skor AI Match skorundan ayrıdır. Yalnızca ilan başlığını, My Goals bölümünde belirlediğin hedef rollerle karşılaştırır."
+                    : "This is separate from your AI Match score. It only compares the job title with the target roles defined in My Goals."}
+                </p>
               </div>
             </div>
 

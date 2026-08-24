@@ -65,6 +65,36 @@ export type Database = {
         }
         Relationships: []
       }
+      search_goals: {
+        Row: {
+          user_id: string
+          target_roles: string[]
+          locations: string[]
+          work_models: string[]
+          weekly_application_goal: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id?: string
+          target_roles?: string[]
+          locations?: string[]
+          work_models?: string[]
+          weekly_application_goal?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          target_roles?: string[]
+          locations?: string[]
+          work_models?: string[]
+          weekly_application_goal?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       gmail_signal_actions: {
         Row: {
           id: string

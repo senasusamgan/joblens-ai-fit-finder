@@ -30,6 +30,17 @@ import {
   migrateGuestApplicationsToCloud,
 } from "@/lib/cloud-applications";
 import {
+  migrateGuestSearchGoalsToCloud,
+} from "@/lib/cloud-search-goals";
+import {
+  DEFAULT_SEARCH_GOALS,
+  loadSearchGoals,
+  type SearchGoals,
+} from "@/lib/search-goals";
+import {
+  buildWeeklyGoalProgress,
+} from "@/lib/weekly-goal-progress";
+import {
   migrateGuestRemindersToCloud,
   updateCloudReminder,
 } from "@/lib/cloud-reminders";
@@ -87,6 +98,10 @@ function DashboardPage() {
   const [ready, setReady] = useState(false);
   const [cloudMode, setCloudMode] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [searchGoals, setSearchGoals] =
+    useState<SearchGoals>({
+      ...DEFAULT_SEARCH_GOALS,
+    });
 
 
   useEffect(() => {
@@ -99,6 +114,8 @@ function DashboardPage() {
       try {
         const applications = await migrateGuestApplicationsToCloud();
         const reminderList = await migrateGuestRemindersToCloud();
+        const goalStrategy =
+          await migrateGuestSearchGoalsToCloud();
 
         const {
           data: { session },
@@ -115,6 +132,7 @@ function DashboardPage() {
         setApps(applications);
         setReminders(reminderList);
         setApplicationEvents(eventList);
+        setSearchGoals(goalStrategy);
       } catch (error) {
         console.error("[JobLens Dashboard] Could not load applications:", error);
 
@@ -124,6 +142,7 @@ function DashboardPage() {
         setApps(loadApplications());
         setReminders(loadReminders());
         setApplicationEvents([]);
+        setSearchGoals(loadSearchGoals());
         setLoadError(
           "Cloud insights could not be loaded. Showing browser data instead.",
         );
@@ -176,6 +195,20 @@ function DashboardPage() {
         applicationEvents,
       ),
     [apps, applicationEvents],
+  );
+
+  const weeklyGoalProgress = useMemo(
+    () =>
+      buildWeeklyGoalProgress(
+        apps,
+        applicationEvents,
+        searchGoals.weeklyApplicationGoal,
+      ),
+    [
+      apps,
+      applicationEvents,
+      searchGoals.weeklyApplicationGoal,
+    ],
   );
 
   const performanceInsights = useMemo(
@@ -363,6 +396,59 @@ function DashboardPage() {
                   detail="75%+ AI match"
                   icon={Trophy}
                 />
+              </section>
+
+              <section className="card-surface mt-6 p-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--color-primary)]">
+                      Weekly Goal
+                    </p>
+
+                    <h2 className="mt-1 text-lg font-semibold">
+                      {weeklyGoalProgress.completed} / {weeklyGoalProgress.goal} applications
+                    </h2>
+
+                    <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
+                      {weeklyGoalProgress.achieved
+                        ? "Weekly target complete. Nice — keep the momentum intentional."
+                        : `${weeklyGoalProgress.remaining} more ${
+                            weeklyGoalProgress.remaining === 1
+                              ? "application"
+                              : "applications"
+                          } to reach this week’s target.`}
+                    </p>
+                  </div>
+
+                  <Link
+                    to="/goals"
+                    className="inline-flex items-center gap-1.5 text-sm font-semibold text-[color:var(--color-primary)] transition hover:opacity-80"
+                  >
+                    Edit strategy
+                    <ArrowRight className="h-4 w-4" aria-hidden />
+                  </Link>
+                </div>
+
+                <div className="mt-5">
+                  <div className="h-2.5 overflow-hidden rounded-full bg-[color:var(--color-muted)]">
+                    <div
+                      className="h-full rounded-full bg-[color:var(--color-primary)] transition-all"
+                      style={{
+                        width: `${weeklyGoalProgress.percent}%`,
+                      }}
+                    />
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-between text-xs text-[color:var(--color-muted-foreground)]">
+                    <span>
+                      {weeklyGoalProgress.percent}% complete
+                    </span>
+
+                    <span>
+                      Goal: {weeklyGoalProgress.goal}/week
+                    </span>
+                  </div>
+                </div>
               </section>
 
               <section className="card-surface mt-6 p-6">

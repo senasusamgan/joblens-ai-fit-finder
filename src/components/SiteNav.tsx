@@ -1,5 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { Sparkles, LayoutDashboard, LayoutList } from "lucide-react";
+import {
+  Sparkles,
+  LayoutDashboard,
+  LayoutList,
+  Target,
+} from "lucide-react";
 import { AuthControl } from "@/components/AuthControl";
 
 const linkBase =
@@ -28,7 +33,7 @@ export function SiteNav() {
           </span>
         </Link>
 
-        <div className="col-span-3 row-start-2 grid grid-cols-3 gap-1 rounded-xl bg-white/[0.03] p-1 md:col-span-1 md:col-start-2 md:row-start-1 md:flex md:justify-self-end md:bg-transparent md:p-0">
+        <div className="col-span-3 row-start-2 grid grid-cols-4 gap-1 rounded-xl bg-white/[0.03] p-1 md:col-span-1 md:col-start-2 md:row-start-1 md:flex md:justify-self-end md:bg-transparent md:p-0">
           <Link
             to="/"
             className={linkBase}
@@ -46,6 +51,15 @@ export function SiteNav() {
           >
             <LayoutDashboard className="h-4 w-4 shrink-0" aria-hidden />
             <span>Dashboard</span>
+          </Link>
+
+          <Link
+            to="/goals"
+            className={linkBase}
+            activeProps={{ className: "bg-white/10 text-white" }}
+          >
+            <Target className="h-4 w-4 shrink-0" aria-hidden />
+            <span>Goals</span>
           </Link>
 
           <Link

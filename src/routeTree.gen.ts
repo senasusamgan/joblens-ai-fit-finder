@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApplicationsRouteImport } from './routes/applications'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as GoalsRouteImport } from './routes/goals'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as ApiAnalyzeRouteImport } from './routes/api/analyze'
@@ -29,6 +30,11 @@ const ApplicationsRoute = ApplicationsRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GoalsRoute = GoalsRouteImport.update({
+  id: '/goals',
+  path: '/goals',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -51,6 +57,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/applications': typeof ApplicationsRoute
   '/dashboard': typeof DashboardRoute
+  '/goals': typeof GoalsRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/api/analyze': typeof ApiAnalyzeRoute
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/applications': typeof ApplicationsRoute
   '/dashboard': typeof DashboardRoute
+  '/goals': typeof GoalsRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/api/analyze': typeof ApiAnalyzeRoute
@@ -68,6 +76,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/applications': typeof ApplicationsRoute
   '/dashboard': typeof DashboardRoute
+  '/goals': typeof GoalsRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/api/analyze': typeof ApiAnalyzeRoute
@@ -78,6 +87,7 @@ export interface FileRouteTypes {
     | '/'
     | '/applications'
     | '/dashboard'
+    | '/goals'
     | '/privacy'
     | '/terms'
     | '/api/analyze'
@@ -86,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/applications'
     | '/dashboard'
+    | '/goals'
     | '/privacy'
     | '/terms'
     | '/api/analyze'
@@ -94,6 +105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/applications'
     | '/dashboard'
+    | '/goals'
     | '/privacy'
     | '/terms'
     | '/api/analyze'
@@ -103,6 +115,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApplicationsRoute: typeof ApplicationsRoute
   DashboardRoute: typeof DashboardRoute
+  GoalsRoute: typeof GoalsRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
   ApiAnalyzeRoute: typeof ApiAnalyzeRoute
@@ -129,6 +142,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/goals': {
+      id: '/goals'
+      path: '/goals'
+      fullPath: '/goals'
+      preLoaderRoute: typeof GoalsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -159,6 +179,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApplicationsRoute: ApplicationsRoute,
   DashboardRoute: DashboardRoute,
+  GoalsRoute: GoalsRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
   ApiAnalyzeRoute: ApiAnalyzeRoute,
