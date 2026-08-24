@@ -41,6 +41,10 @@ import {
   buildApplicationAnalytics,
 } from "@/lib/application-analytics";
 import {
+  buildApplicationPerformanceInsights,
+  buildTopPerformanceSignal,
+} from "@/lib/application-performance-insights";
+import {
   loadReminders,
   updateReminder,
   type Reminder,
@@ -172,6 +176,23 @@ function DashboardPage() {
         applicationEvents,
       ),
     [apps, applicationEvents],
+  );
+
+  const performanceInsights = useMemo(
+    () =>
+      buildApplicationPerformanceInsights(
+        apps,
+        applicationEvents,
+      ),
+    [apps, applicationEvents],
+  );
+
+  const topPerformanceSignal = useMemo(
+    () =>
+      buildTopPerformanceSignal(
+        performanceInsights,
+      ),
+    [performanceInsights],
   );
 
   const recentApplications = useMemo(
@@ -445,6 +466,47 @@ function DashboardPage() {
                     })}
                   </div>
                 </div>
+              </section>
+
+              <section className="card-surface mt-6 p-6">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--color-primary)]">
+                    Performance Insights
+                  </p>
+                  <h2 className="mt-1 text-lg font-semibold">
+                    Where are you seeing the strongest signal?
+                  </h2>
+                </div>
+
+                {topPerformanceSignal ? (
+                  <div className="mt-5 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/35 p-5">
+                    <p className="text-xs font-medium text-[color:var(--color-muted-foreground)]">
+                      Strongest observed signal
+                    </p>
+
+                    <p className="mt-2 text-lg font-semibold">
+                      {topPerformanceSignal.headline}
+                    </p>
+
+                    <p className="mt-2 text-sm text-[color:var(--color-muted-foreground)]">
+                      {topPerformanceSignal.detail}
+                    </p>
+
+                    <p className="mt-4 text-xs text-[color:var(--color-muted-foreground)]">
+                      This is based only on your tracked application history and should be treated as directional, not predictive.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-5 rounded-xl border border-dashed border-[color:var(--color-border)] p-5">
+                    <p className="font-medium">
+                      Keep tracking — insights unlock as your history grows.
+                    </p>
+
+                    <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
+                      JobLens only surfaces performance patterns when there is enough application history to avoid misleading conclusions.
+                    </p>
+                  </div>
+                )}
               </section>
 
               <div className="mt-6 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
