@@ -14,183 +14,207 @@ export type Database = {
   }
   public: {
     Tables: {
+      application_events: {
+        Row: {
+          application_id: string
+          created_at: string
+          event_type: string
+          from_status: string | null
+          id: string
+          occurred_at: string
+          source: string
+          to_status: string | null
+          user_id: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          event_type: string
+          from_status?: string | null
+          id?: string
+          occurred_at?: string
+          source?: string
+          to_status?: string | null
+          user_id?: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          event_type?: string
+          from_status?: string | null
+          id?: string
+          occurred_at?: string
+          source?: string
+          to_status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_events_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      application_reminders: {
+        Row: {
+          application_id: string
+          completed_at: string | null
+          created_at: string
+          due_at: string
+          id: string
+          source_local_id: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          application_id: string
+          completed_at?: string | null
+          created_at?: string
+          due_at: string
+          id?: string
+          source_local_id?: string | null
+          title: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          application_id?: string
+          completed_at?: string | null
+          created_at?: string
+          due_at?: string
+          id?: string
+          source_local_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_reminders_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       applications: {
         Row: {
-          id: string
-          user_id: string
-          job_title: string
-          company_name: string
-          job_url: string | null
-          status: string
-          match_score: number | null
-          verdict: string | null
-          job_description: string | null
           applied_at: string | null
+          company_name: string
+          created_at: string
+          id: string
+          job_description: string | null
+          job_title: string
+          job_url: string | null
+          match_score: number | null
           notes: string | null
           source_local_id: string | null
-          created_at: string
+          status: string
           updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id?: string
-          job_title: string
-          company_name?: string
-          job_url?: string | null
-          status?: string
-          match_score?: number | null
-          verdict?: string | null
-          job_description?: string | null
-          applied_at?: string | null
-          notes?: string | null
-          source_local_id?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          job_title?: string
-          company_name?: string
-          job_url?: string | null
-          status?: string
-          match_score?: number | null
-          verdict?: string | null
-          job_description?: string | null
-          applied_at?: string | null
-          notes?: string | null
-          source_local_id?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      search_goals: {
-        Row: {
           user_id: string
-          target_roles: string[]
-          locations: string[]
-          work_models: string[]
-          weekly_application_goal: number
-          created_at: string
-          updated_at: string
+          verdict: string | null
         }
         Insert: {
-          user_id?: string
-          target_roles?: string[]
-          locations?: string[]
-          work_models?: string[]
-          weekly_application_goal?: number
+          applied_at?: string | null
+          company_name?: string
           created_at?: string
+          id?: string
+          job_description?: string | null
+          job_title: string
+          job_url?: string | null
+          match_score?: number | null
+          notes?: string | null
+          source_local_id?: string | null
+          status?: string
           updated_at?: string
+          user_id?: string
+          verdict?: string | null
         }
         Update: {
-          user_id?: string
-          target_roles?: string[]
-          locations?: string[]
-          work_models?: string[]
-          weekly_application_goal?: number
+          applied_at?: string | null
+          company_name?: string
           created_at?: string
+          id?: string
+          job_description?: string | null
+          job_title?: string
+          job_url?: string | null
+          match_score?: number | null
+          notes?: string | null
+          source_local_id?: string | null
+          status?: string
           updated_at?: string
+          user_id?: string
+          verdict?: string | null
         }
         Relationships: []
       }
       gmail_signal_actions: {
         Row: {
-          id: string
-          user_id: string
-          message_id: string
           action: string
           application_id: string | null
           handled_at: string
+          id: string
+          message_id: string
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id?: string
-          message_id: string
           action: string
           application_id?: string | null
           handled_at?: string
+          id?: string
+          message_id: string
+          user_id?: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          message_id?: string
           action?: string
           application_id?: string | null
           handled_at?: string
-        }
-        Relationships: []
-      }
-      application_events: {
-        Row: {
-          id: string
-          user_id: string
-          application_id: string
-          event_type: string
-          source: string
-          from_status: string | null
-          to_status: string | null
-          occurred_at: string
-          created_at: string
-        }
-        Insert: {
           id?: string
+          message_id?: string
           user_id?: string
-          application_id: string
-          event_type: string
-          source?: string
-          from_status?: string | null
-          to_status?: string | null
-          occurred_at?: string
-          created_at?: string
         }
-        Update: {
-          id?: string
-          user_id?: string
-          application_id?: string
-          event_type?: string
-          source?: string
-          from_status?: string | null
-          to_status?: string | null
-          occurred_at?: string
-          created_at?: string
-        }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "gmail_signal_actions_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      application_reminders: {
+      search_goals: {
         Row: {
-          id: string
-          user_id: string
-          application_id: string
-          title: string
-          due_at: string
-          completed_at: string | null
-          source_local_id: string | null
           created_at: string
+          locations: string[]
+          target_roles: string[]
           updated_at: string
+          user_id: string
+          weekly_application_goal: number
+          work_models: string[]
         }
         Insert: {
-          id?: string
-          user_id?: string
-          application_id: string
-          title: string
-          due_at: string
-          completed_at?: string | null
-          source_local_id?: string | null
           created_at?: string
+          locations?: string[]
+          target_roles?: string[]
           updated_at?: string
+          user_id?: string
+          weekly_application_goal?: number
+          work_models?: string[]
         }
         Update: {
-          id?: string
-          user_id?: string
-          application_id?: string
-          title?: string
-          due_at?: string
-          completed_at?: string | null
-          source_local_id?: string | null
           created_at?: string
+          locations?: string[]
+          target_roles?: string[]
           updated_at?: string
+          user_id?: string
+          weekly_application_goal?: number
+          work_models?: string[]
         }
         Relationships: []
       }
