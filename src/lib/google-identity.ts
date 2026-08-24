@@ -128,12 +128,12 @@ export async function renderGoogleSignInButton(
   ).matches;
 
   google.accounts.id.renderButton(container, {
-    type: isCompactViewport ? "icon" : "standard",
+    type: "standard",
     theme: "outline",
     size: isCompactViewport ? "medium" : "large",
     text: "signin_with",
-    shape: isCompactViewport ? "circle" : "pill",
+    shape: "pill",
     logo_alignment: "left",
-    width: isCompactViewport ? undefined : 280,
+    width: isCompactViewport ? 130 : 280,
   });
 }
