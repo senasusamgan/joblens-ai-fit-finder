@@ -99,6 +99,13 @@ const T = {
     noGaps: "No notable learnable gaps were identified.",
     noBlockers: "No clear mandatory blockers were identified.",
     noSuggestions: "No specific CV suggestions for this application.",
+    cvTailor: "CV Tailor",
+    tailorIntro: "Turn the analysis into concrete CV edits for this application.",
+    whatToImprove: "What to improve",
+    whyItMatters: "Why it matters",
+    suggestedRewrite: "Suggested rewrite",
+    copyRewrite: "Copy rewrite",
+    copiedRewrite: "✓ Copied",
   },
   Turkish: {
     strongMatches: "Güçlü Eşleşmeler",
@@ -122,6 +129,13 @@ const T = {
     noGaps: "Belirgin bir geliştirilebilir eksiklik bulunmadı.",
     noBlockers: "Net bir zorunlu engel bulunmadı.",
     noSuggestions: "Bu başvuru için özel bir CV önerisi yok.",
+    cvTailor: "CV Tailor",
+    tailorIntro: "Analizi bu başvuruya özel somut CV düzenlemelerine dönüştür.",
+    whatToImprove: "Neyi geliştirmelisin",
+    whyItMatters: "Neden önemli",
+    suggestedRewrite: "Önerilen düzenleme",
+    copyRewrite: "Düzenlemeyi kopyala",
+    copiedRewrite: "✓ Kopyalandı",
   },
 } as const;
 
@@ -138,6 +152,7 @@ function Index() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedCvSuggestion, setCopiedCvSuggestion] = useState<number | null>(null);
   const [savedApplicationId, setSavedApplicationId] = useState<string | null>(null);
 
   // CV input mode
@@ -263,6 +278,16 @@ function Index() {
     setSubmitError(null);
     setSavedApplicationId(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const copyCvSuggestion = async (index: number, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedCvSuggestion(index);
+      setTimeout(() => setCopiedCvSuggestion(null), 1800);
+    } catch {
+      /* ignore */
+    }
   };
 
   const copyMessage = async () => {
@@ -789,24 +814,69 @@ function Index() {
               )}
             </ResultCard>
 
-            <ResultCard title={t.cvSuggestions} accent="primary" count={analysis.cvSuggestions.length}>
+            <ResultCard title={t.cvTailor} accent="primary" count={analysis.cvSuggestions.length}>
+              <p className="mb-5 text-sm text-[color:var(--color-muted-foreground)]">
+                {t.tailorIntro}
+              </p>
+
               {analysis.cvSuggestions.length === 0 ? (
                 <Empty text={t.noSuggestions} />
               ) : (
                 <ul className="space-y-4">
                   {analysis.cvSuggestions.map((s, i) => (
-                    <li key={i} className="rounded-lg border border-[color:var(--color-border)] p-4">
-                      <p className="text-xs uppercase tracking-wide text-[color:var(--color-muted-foreground)]">
+                    <li
+                      key={i}
+                      className="rounded-xl border border-[color:var(--color-border)] p-4 md:p-5"
+                    >
+                      <div className="inline-flex rounded-full bg-[color:var(--color-primary)]/10 px-2.5 py-1 text-xs font-semibold text-[color:var(--color-primary)]">
                         {s.section}
-                      </p>
-                      <p className="mt-1 font-medium">{s.suggestion}</p>
-                      <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">{s.reason}</p>
+                      </div>
+
+                      <div className="mt-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-muted-foreground)]">
+                          {t.whatToImprove}
+                        </p>
+                        <p className="mt-1 font-medium leading-relaxed">
+                          {s.suggestion}
+                        </p>
+                      </div>
+
+                      <div className="mt-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-muted-foreground)]">
+                          {t.whyItMatters}
+                        </p>
+                        <p className="mt-1 text-sm leading-relaxed text-[color:var(--color-muted-foreground)]">
+                          {s.reason}
+                        </p>
+                      </div>
+
                       {s.example && (
-                        <div className="mt-3 rounded-md bg-[color:var(--color-muted)] p-3 text-sm">
-                          <span className="block text-xs font-semibold text-[color:var(--color-muted-foreground)] mb-1">
-                            {t.exampleRewrite}
+                        <div className="mt-4 rounded-xl border border-[color:var(--color-primary)]/20 bg-[color:var(--color-primary)]/5 p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-primary)]">
+                              {t.suggestedRewrite}
+                            </p>
+
+                            <button
+                              type="button"
+                              onClick={() => copyCvSuggestion(i, s.example)}
+                              className="shrink-0 rounded-lg border border-[color:var(--color-border)] bg-white px-3 py-1.5 text-xs font-semibold text-[color:var(--color-surface-foreground)] transition hover:bg-[color:var(--color-muted)]"
+                            >
+                              {copiedCvSuggestion === i
+                                ? t.copiedRewrite
+                                : t.copyRewrite}
+                            </button>
+                          </div>
+
+                          <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed">
+                            {s.example}
+                          </p>
+
+                          <span className="sr-only" aria-live="polite">
+                            {copiedCvSuggestion === i
+                              ? t.copiedRewrite
+                              : ""}
                           </span>
-                          {s.example}
                         </div>
                       )}
                     </li>
