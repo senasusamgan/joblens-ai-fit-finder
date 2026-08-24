@@ -73,13 +73,12 @@ function TermsPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-foreground">
-              4. Google and Gmail features
+              4. Google sign-in
             </h2>
             <p className="mt-3">
-              Gmail integration is optional and uses read-only access. JobLens
-              AI may identify possible recruitment-related emails, but you
-              remain in control of whether a detected signal is linked to or
-              used to update an application.
+              Google sign-in may be used to authenticate your JobLens AI
+              account. JobLens AI does not request access to your Gmail inbox
+              or email messages as part of this authentication.
             </p>
           </section>
 
