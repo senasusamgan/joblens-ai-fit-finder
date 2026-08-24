@@ -118,6 +118,8 @@ function ApplicationsPage() {
     useState(false);
   const [emailImportSuccess, setEmailImportSuccess] =
     useState<string | null>(null);
+  const [emailImportStatusEdited, setEmailImportStatusEdited] =
+    useState(false);
 
   const [reminderApp, setReminderApp] = useState<Application | null>(null);
   const [reminderTitle, setReminderTitle] = useState("Follow up");
@@ -212,6 +214,7 @@ function ApplicationsPage() {
     setEmailImportError(null);
     setEmailImportSuccess(null);
     setEmailImportPreview(null);
+    setEmailImportStatusEdited(false);
 
     const parsed = parsePastedRecruitmentEmail(
       emailImportText,
@@ -232,6 +235,7 @@ function ApplicationsPage() {
     setEmailImportPreview(null);
     setEmailImportError(null);
     setEmailImportSuccess(null);
+    setEmailImportStatusEdited(false);
   };
 
   const confirmEmailImport = async () => {
@@ -246,16 +250,6 @@ function ApplicationsPage() {
         const application =
           emailImportMatch.application;
 
-        if (
-          application.status ===
-          emailImportPreview.status
-        ) {
-          setEmailImportSuccess(
-            "This application is already up to date.",
-          );
-          return;
-        }
-
         const statusOrder: Record<
           ApplicationStatus,
           number
@@ -269,6 +263,7 @@ function ApplicationsPage() {
         };
 
         if (
+          !emailImportStatusEdited &&
           emailImportPreview.status !==
             "Rejected" &&
           statusOrder[application.status] >
@@ -283,10 +278,14 @@ function ApplicationsPage() {
         }
 
         const patch = {
+          jobTitle:
+            emailImportPreview.jobTitleSuggestion.trim(),
+          companyName:
+            emailImportPreview.companySuggestion.trim(),
           status: emailImportPreview.status,
           appliedAt:
-            application.appliedAt ??
-            emailImportPreview.applicationDateIso ??
+            emailImportPreview.applicationDateIso ||
+            application.appliedAt ||
             undefined,
         };
 
@@ -305,19 +304,23 @@ function ApplicationsPage() {
             ),
           );
 
-          try {
-            await recordApplicationEvent({
-              applicationId: application.id,
-              eventType: "status_change",
-              source: "manual",
-              fromStatus: application.status,
-              toStatus: updated.status,
-            });
-          } catch (eventError) {
-            console.error(
-              "[JobLens Email Import] Timeline event failed:",
-              eventError,
-            );
+          if (
+            application.status !== updated.status
+          ) {
+            try {
+              await recordApplicationEvent({
+                applicationId: application.id,
+                eventType: "status_change",
+                source: "manual",
+                fromStatus: application.status,
+                toStatus: updated.status,
+              });
+            } catch (eventError) {
+              console.error(
+                "[JobLens Email Import] Timeline event failed:",
+                eventError,
+              );
+            }
           }
         } else {
           setApps(
@@ -329,7 +332,7 @@ function ApplicationsPage() {
         }
 
         setEmailImportSuccess(
-          `Updated ${application.companyName} to ${emailImportPreview.status}.`,
+          `Updated ${emailImportPreview.companySuggestion} — ${emailImportPreview.status}.`,
         );
       } else {
         if (
@@ -745,6 +748,8 @@ function ApplicationsPage() {
                   setEmailImportText(event.target.value);
                   setEmailImportPreview(null);
                   setEmailImportError(null);
+                  setEmailImportSuccess(null);
+                  setEmailImportStatusEdited(false);
                 }}
                 rows={8}
                 placeholder={"From: Bayer Careers <careers@bayer.com>\nSubject: Interview invitation\n\nWe would like to invite you to an interview..."}
@@ -785,49 +790,100 @@ function ApplicationsPage() {
                     Preview
                   </p>
 
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                    <div>
-                      <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                  <p className="mt-2 text-xs text-[color:var(--color-muted-foreground)]">
+                    JobLens detected these details. Review and edit anything that looks wrong before confirming.
+                  </p>
+
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                    <label className="block">
+                      <span className="text-xs text-[color:var(--color-muted-foreground)]">
                         Company
-                      </p>
-                      <p className="mt-1 font-semibold">
-                        {emailImportPreview.companySuggestion || "Not detected"}
-                      </p>
-                    </div>
+                      </span>
+                      <input
+                        value={emailImportPreview.companySuggestion}
+                        onChange={(event) => {
+                          setEmailImportPreview({
+                            ...emailImportPreview,
+                            companySuggestion: event.target.value,
+                          });
+                          setEmailImportSuccess(null);
+                        }}
+                        className="mt-1.5 w-full rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-2 text-sm font-medium outline-none transition focus:border-[color:var(--color-primary)]"
+                      />
+                    </label>
 
-                    <div>
-                      <p className="text-xs text-[color:var(--color-muted-foreground)]">
-                        Status
-                      </p>
-                      <p className="mt-1 font-semibold">
-                        {emailImportPreview.status}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                    <label className="block">
+                      <span className="text-xs text-[color:var(--color-muted-foreground)]">
                         Position
-                      </p>
-                      <p className="mt-1 font-semibold">
-                        {emailImportPreview.jobTitleSuggestion || "Not detected"}
-                      </p>
-                    </div>
+                      </span>
+                      <input
+                        value={emailImportPreview.jobTitleSuggestion}
+                        onChange={(event) => {
+                          setEmailImportPreview({
+                            ...emailImportPreview,
+                            jobTitleSuggestion: event.target.value,
+                          });
+                          setEmailImportSuccess(null);
+                        }}
+                        className="mt-1.5 w-full rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-2 text-sm font-medium outline-none transition focus:border-[color:var(--color-primary)]"
+                      />
+                    </label>
 
-                    <div>
-                      <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                    <label className="block">
+                      <span className="text-xs text-[color:var(--color-muted-foreground)]">
+                        Status
+                      </span>
+                      <select
+                        value={emailImportPreview.status}
+                        onChange={(event) => {
+                          setEmailImportPreview({
+                            ...emailImportPreview,
+                            status: event.target.value as ParsedRecruitmentEmail["status"],
+                          });
+                          setEmailImportStatusEdited(true);
+                          setEmailImportSuccess(null);
+                          setEmailImportError(null);
+                        }}
+                        className="mt-1.5 w-full rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-2 text-sm font-medium outline-none transition focus:border-[color:var(--color-primary)]"
+                      >
+                        {APPLICATION_STATUSES
+                          .filter((status) => status !== "Saved")
+                          .map((status) => (
+                            <option key={status} value={status}>
+                              {status}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+
+                    <label className="block">
+                      <span className="text-xs text-[color:var(--color-muted-foreground)]">
                         Application Date
-                      </p>
-                      <p className="mt-1 font-semibold">
-                        {emailImportPreview.applicationDateSuggestion || "Not detected"}
-                      </p>
-                    </div>
+                      </span>
+                      <input
+                        type="date"
+                        value={emailImportPreview.applicationDateIso}
+                        onChange={(event) => {
+                          setEmailImportPreview({
+                            ...emailImportPreview,
+                            applicationDateIso: event.target.value,
+                            applicationDateSuggestion: event.target.value,
+                          });
+                          setEmailImportSuccess(null);
+                        }}
+                        className="mt-1.5 w-full rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-2 text-sm font-medium outline-none transition focus:border-[color:var(--color-primary)]"
+                      />
+                    </label>
 
                     <div>
-                      <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                      <span className="text-xs text-[color:var(--color-muted-foreground)]">
                         Confidence
-                      </p>
-                      <p className="mt-1 font-semibold capitalize">
+                      </span>
+                      <div className="mt-1.5 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/40 px-3 py-2 text-sm font-semibold capitalize">
                         {emailImportPreview.confidence}
+                      </div>
+                      <p className="mt-1 text-[10px] text-[color:var(--color-muted-foreground)]">
+                        Parser estimate
                       </p>
                     </div>
                   </div>
