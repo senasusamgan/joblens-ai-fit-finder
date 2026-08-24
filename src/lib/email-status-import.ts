@@ -15,17 +15,132 @@ export interface ParsedRecruitmentEmail {
   rawText: string;
 }
 
+interface CopiedEmailHeaders {
+  subject: string;
+  from: string;
+}
+
+function extractCopiedEmailHeaders(
+  rawText: string,
+): CopiedEmailHeaders {
+  let subject = "";
+  let from = "";
+
+  const lines = rawText
+    .split(/\r?\n/)
+    .slice(0, 50);
+
+  for (const line of lines) {
+    if (!from) {
+      const match = line.match(
+        /^\s*(?:from|kimden|gönderen)\s*:\s*(.+?)\s*$/iu,
+      );
+
+      if (match?.[1]) {
+        from = match[1].trim();
+      }
+    }
+
+    if (!subject) {
+      const match = line.match(
+        /^\s*(?:subject|konu)\s*:\s*(.+?)\s*$/iu,
+      );
+
+      if (match?.[1]) {
+        subject = match[1].trim();
+      }
+    }
+
+    if (from && subject) break;
+  }
+
+  return {
+    subject,
+    from,
+  };
+}
+
+function cleanSenderCompany(
+  value: string,
+): string {
+  let company = value
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const suffix =
+    /\s+(?:careers?(?:\s+team)?|career\s+team|recruiting|recruitment|talent\s+acquisition|hr|human\s+resources|jobs?|kariyer(?:\s+ekibi)?|işe\s+alım(?:\s+ekibi)?|insan\s+kaynakları(?:\s+ekibi)?)$/iu;
+
+  for (let index = 0; index < 3; index += 1) {
+    const cleaned = company
+      .replace(suffix, "")
+      .trim();
+
+    if (cleaned === company) break;
+
+    company = cleaned;
+  }
+
+  return company;
+}
+
+function isGenericSenderCompany(
+  value: string,
+): boolean {
+  // Locale-independent on purpose:
+  // Turkish locale turns "LinkedIn" into "linkedın".
+  const company = value
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return [
+    "linkedin",
+    "youthall",
+    "indeed",
+    "greenhouse",
+    "lever",
+    "workday",
+    "smartrecruiters",
+    "teamtailor",
+    "noreply",
+    "no-reply",
+    "no reply",
+    "recruiting",
+    "recruitment",
+    "careers",
+    "jobs",
+  ].includes(company);
+}
+
 function extractCompany(rawText: string): string {
+  const headers =
+    extractCopiedEmailHeaders(rawText);
+
   const signal = {
-    subject: "",
-    from: "",
+    subject: headers.subject,
+    from: headers.from,
     snippet: rawText,
   };
 
-  return (
-    extractCompanyFromSignal(signal) ??
-    suggestCompanyFromSignal(signal)
+  const explicitCompany =
+    extractCompanyFromSignal(signal);
+
+  if (explicitCompany) {
+    return explicitCompany;
+  }
+
+  const senderCompany = cleanSenderCompany(
+    suggestCompanyFromSignal(signal),
   );
+
+  if (
+    !senderCompany ||
+    isGenericSenderCompany(senderCompany)
+  ) {
+    return "";
+  }
+
+  return senderCompany;
 }
 
 function extractJobTitle(rawText: string): string {
@@ -108,7 +223,7 @@ function extractJobTitle(rawText: string): string {
       }
 
       if (
-        /^(başvuru tarihi|application date|applied on)\s*:/i.test(
+        /^(başvuru tarihi|application date|applied on)\s*:?/i.test(
           candidate,
         )
       ) {
@@ -169,59 +284,73 @@ function extractJobTitle(rawText: string): string {
 
   return "";
 }
-function applicationDateToIso(
-  value: string,
+const APPLICATION_DATE_MONTHS: Record<
+  string,
+  number
+> = {
+  ocak: 1,
+  şubat: 2,
+  subat: 2,
+  mart: 3,
+  nisan: 4,
+  mayıs: 5,
+  mayis: 5,
+  haziran: 6,
+  temmuz: 7,
+  ağustos: 8,
+  agustos: 8,
+  eylül: 9,
+  eylul: 9,
+  ekim: 10,
+  kasım: 11,
+  kasim: 11,
+  aralık: 12,
+  aralik: 12,
+
+  january: 1,
+  jan: 1,
+  february: 2,
+  feb: 2,
+  march: 3,
+  mar: 3,
+  april: 4,
+  apr: 4,
+  may: 5,
+  june: 6,
+  jun: 6,
+  july: 7,
+  jul: 7,
+  august: 8,
+  aug: 8,
+  september: 9,
+  sept: 9,
+  sep: 9,
+  october: 10,
+  oct: 10,
+  november: 11,
+  nov: 11,
+  december: 12,
+  dec: 12,
+};
+
+function validApplicationDateIso(
+  year: number,
+  month: number,
+  day: number,
 ): string {
-  if (!value) return "";
+  if (!year || !month || !day) return "";
 
-  const months: Record<string, number> = {
-    ocak: 1,
-    şubat: 2,
-    subat: 2,
-    mart: 3,
-    nisan: 4,
-    mayıs: 5,
-    mayis: 5,
-    haziran: 6,
-    temmuz: 7,
-    ağustos: 8,
-    agustos: 8,
-    eylül: 9,
-    eylul: 9,
-    ekim: 10,
-    kasım: 11,
-    kasim: 11,
-    aralık: 12,
-    aralik: 12,
+  const date = new Date(
+    Date.UTC(year, month - 1, day),
+  );
 
-    january: 1,
-    february: 2,
-    march: 3,
-    april: 4,
-    may: 5,
-    june: 6,
-    july: 7,
-    august: 8,
-    september: 9,
-    october: 10,
-    november: 11,
-    december: 12,
-  };
-
-  const match = value
-    .trim()
-    .toLocaleLowerCase("tr-TR")
-    .match(
-      /(\d{1,2})\s+([a-zçğıöşü]+)\s+(\d{4})/iu,
-    );
-
-  if (!match) return "";
-
-  const day = Number(match[1]);
-  const month = months[match[2]];
-  const year = Number(match[3]);
-
-  if (!month || !day || !year) return "";
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() + 1 !== month ||
+    date.getUTCDate() !== day
+  ) {
+    return "";
+  }
 
   return [
     String(year),
@@ -230,22 +359,87 @@ function applicationDateToIso(
   ].join("-");
 }
 
+function applicationDateToIso(
+  value: string,
+): string {
+  if (!value) return "";
+
+  const text = value
+    .replace(/\*\*/g, "")
+    .trim()
+    .toLocaleLowerCase("tr-TR");
+
+  let match = text.match(
+    /\b(\d{4})-(\d{1,2})-(\d{1,2})\b/,
+  );
+
+  if (match) {
+    return validApplicationDateIso(
+      Number(match[1]),
+      Number(match[2]),
+      Number(match[3]),
+    );
+  }
+
+  match = text.match(
+    /\b(\d{1,2})[./-](\d{1,2})[./-](\d{4})\b/,
+  );
+
+  if (match) {
+    return validApplicationDateIso(
+      Number(match[3]),
+      Number(match[2]),
+      Number(match[1]),
+    );
+  }
+
+  match = text.match(
+    /\b(\d{1,2})\s+([a-zçğıöşü]+)\s*,?\s*(\d{4})\b/iu,
+  );
+
+  if (match) {
+    return validApplicationDateIso(
+      Number(match[3]),
+      APPLICATION_DATE_MONTHS[match[2]],
+      Number(match[1]),
+    );
+  }
+
+  match = text.match(
+    /\b([a-zçğıöşü]+)\s+(\d{1,2})(?:st|nd|rd|th)?\s*,?\s*(\d{4})\b/iu,
+  );
+
+  if (match) {
+    return validApplicationDateIso(
+      Number(match[3]),
+      APPLICATION_DATE_MONTHS[match[1]],
+      Number(match[2]),
+    );
+  }
+
+  return "";
+}
+
 function extractApplicationDate(
   rawText: string,
 ): string {
   const patterns = [
-    /başvuru\s+tarihi\s*:\s*([^\n|]+)/i,
-    /application\s+date\s*:\s*([^\n|]+)/i,
-    /applied\s+on\s*:\s*([^\n|]+)/i,
+    /başvuru\s+tarihi\s*:?\s*([^\n|]+)/i,
+    /application\s+date\s*:?\s*([^\n|]+)/i,
+    /applied\s+on\s*:?\s*([^\n|]+)/i,
   ];
 
   for (const pattern of patterns) {
     const match = rawText.match(pattern);
 
-    if (match?.[1]) {
-      return match[1]
-        .replace(/\*\*/g, "")
-        .trim();
+    if (!match?.[1]) continue;
+
+    const value = match[1]
+      .replace(/\*\*/g, "")
+      .trim();
+
+    if (applicationDateToIso(value)) {
+      return value;
     }
   }
 
@@ -258,9 +452,9 @@ function classifyDirectPaste(
   kind: GmailSignalKind;
   confidence: "high" | "medium";
 } | null {
-  const text = rawText.toLocaleLowerCase();
+  const headers =
+    extractCopiedEmailHeaders(rawText);
 
-  // Strong deterministic application confirmation patterns.
   if (
     /başvurunuz[\s\S]{0,160}?şirketine\s+(?:gönderildi|iletildi|görüntülendi)/i.test(
       rawText,
@@ -275,12 +469,10 @@ function classifyDirectPaste(
     };
   }
 
-  // Reuse the existing deterministic status classifier
-  // for interview / case / offer / rejection language.
   return classifyGmailSignal({
-    subject: "",
-    from: "",
-    snippet: text,
+    subject: headers.subject,
+    from: headers.from,
+    snippet: rawText,
   });
 }
 

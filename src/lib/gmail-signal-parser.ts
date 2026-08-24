@@ -20,7 +20,7 @@ export function extractCompanyFromSignal(
   const patterns = [
     /başvurunuz\s+(?!alındı(?:\s|$))(.+?)\s+şirketine\s+(?:gönderildi|iletildi|görüntülendi)/i,
     /başvurun\s+(?!alındı(?:\s|$))(.+?)\s+şirketine\s+(?:gönderildi|iletildi|görüntülendi)/i,
-    /(?:your\s+)?application(?:\s+was)?\s+(?:sent to|viewed by)\s+(.+?)(?:[.!]|$)/i,
+    /(?:your\s+)?application(?:\s+was)?\s+(?:sent to|viewed by)\s+([^\r\n]+)/i,
   ];
 
   for (const pattern of patterns) {
