@@ -34,6 +34,13 @@ import {
   updateCloudReminder,
 } from "@/lib/cloud-reminders";
 import {
+  loadAllApplicationEvents,
+  type ApplicationEvent,
+} from "@/lib/application-events";
+import {
+  buildApplicationAnalytics,
+} from "@/lib/application-analytics";
+import {
   loadReminders,
   updateReminder,
   type Reminder,
@@ -72,6 +79,7 @@ const statusAccent: Record<ApplicationStatus, string> = {
 function DashboardPage() {
   const [apps, setApps] = useState<Application[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [applicationEvents, setApplicationEvents] = useState<ApplicationEvent[]>([]);
   const [ready, setReady] = useState(false);
   const [cloudMode, setCloudMode] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -92,12 +100,17 @@ function DashboardPage() {
           data: { session },
         } = await supabase.auth.getSession();
 
+        const eventList = session
+          ? await loadAllApplicationEvents()
+          : [];
+
         if (!mounted) return;
 
 
         setCloudMode(Boolean(session));
         setApps(applications);
         setReminders(reminderList);
+        setApplicationEvents(eventList);
       } catch (error) {
         console.error("[JobLens Dashboard] Could not load applications:", error);
 
@@ -106,6 +119,7 @@ function DashboardPage() {
         setCloudMode(false);
         setApps(loadApplications());
         setReminders(loadReminders());
+        setApplicationEvents([]);
         setLoadError(
           "Cloud insights could not be loaded. Showing browser data instead.",
         );
@@ -150,6 +164,15 @@ function DashboardPage() {
       strongFits: scored.filter((app) => (app.matchScore ?? 0) >= 75).length,
     };
   }, [apps]);
+
+  const analytics = useMemo(
+    () =>
+      buildApplicationAnalytics(
+        apps,
+        applicationEvents,
+      ),
+    [apps, applicationEvents],
+  );
 
   const recentApplications = useMemo(
     () =>
@@ -319,6 +342,109 @@ function DashboardPage() {
                   detail="75%+ AI match"
                   icon={Trophy}
                 />
+              </section>
+
+              <section className="card-surface mt-6 p-6">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--color-primary)]">
+                      Application Analytics
+                    </p>
+                    <h2 className="mt-1 text-lg font-semibold">
+                      How is your job search converting?
+                    </h2>
+                    <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
+                      Based on applications that have moved beyond Saved.
+                    </p>
+                  </div>
+
+                  <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                    {analytics.submittedApplications} submitted applications
+                  </p>
+                </div>
+
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/35 p-4">
+                    <p className="text-xs font-medium text-[color:var(--color-muted-foreground)]">
+                      Interview Reach Rate
+                    </p>
+                    <p className="mt-1 text-2xl font-semibold">
+                      {analytics.interviewReachRate === null
+                        ? "—"
+                        : `${analytics.interviewReachRate}%`}
+                    </p>
+                    <p className="mt-1 text-xs text-[color:var(--color-muted-foreground)]">
+                      {analytics.interviewReached} reached Interview, Case or Offer
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/35 p-4">
+                    <p className="text-xs font-medium text-[color:var(--color-muted-foreground)]">
+                      Offer Reach Rate
+                    </p>
+                    <p className="mt-1 text-2xl font-semibold">
+                      {analytics.offerReachRate === null
+                        ? "—"
+                        : `${analytics.offerReachRate}%`}
+                    </p>
+                    <p className="mt-1 text-xs text-[color:var(--color-muted-foreground)]">
+                      {analytics.offerReached} reached Offer
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold">
+                        Application Activity
+                      </p>
+                      <p className="mt-0.5 text-xs text-[color:var(--color-muted-foreground)]">
+                        Applications added over the last 8 weeks.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid h-40 grid-cols-8 items-end gap-2">
+                    {analytics.weeklyActivity.map((week) => {
+                      const maxCount = Math.max(
+                        1,
+                        ...analytics.weeklyActivity.map((item) => item.count),
+                      );
+
+                      const height =
+                        week.count === 0
+                          ? 4
+                          : Math.max(
+                              12,
+                              Math.round((week.count / maxCount) * 100),
+                            );
+
+                      return (
+                        <div
+                          key={week.weekStart}
+                          className="flex h-full min-w-0 flex-col justify-end"
+                        >
+                          <div className="mb-1 text-center text-xs font-medium text-[color:var(--color-surface-foreground)]">
+                            {week.count}
+                          </div>
+
+                          <div className="flex h-24 items-end">
+                            <div
+                              className="w-full rounded-t-md bg-[color:var(--color-primary)]/75"
+                              style={{ height: `${height}%` }}
+                              title={`${week.label}: ${week.count} applications`}
+                            />
+                          </div>
+
+                          <div className="mt-2 truncate text-center text-[10px] text-[color:var(--color-muted-foreground)]">
+                            {week.label}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </section>
 
               <div className="mt-6 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
