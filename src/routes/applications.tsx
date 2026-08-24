@@ -10,6 +10,7 @@ import {
   Sparkles,
   Bell,
   History,
+  Mail,
 } from "lucide-react";
 import { SiteNav } from "@/components/SiteNav";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,6 +39,11 @@ import {
 } from "@/lib/application-events";
 import { deleteRemindersForApplication } from "@/lib/reminders";
 import { getNextBestAction } from "@/lib/next-best-action";
+import {
+  parsePastedRecruitmentEmail,
+  findMatchingApplicationFromEmail,
+  type ParsedRecruitmentEmail,
+} from "@/lib/email-status-import";
 
 export const Route = createFileRoute("/applications")({
   head: () => ({
@@ -101,6 +107,17 @@ function ApplicationsPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [cloudMode, setCloudMode] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+
+  const [emailImportOpen, setEmailImportOpen] = useState(false);
+  const [emailImportText, setEmailImportText] = useState("");
+  const [emailImportPreview, setEmailImportPreview] =
+    useState<ParsedRecruitmentEmail | null>(null);
+  const [emailImportError, setEmailImportError] =
+    useState<string | null>(null);
+  const [emailImportBusy, setEmailImportBusy] =
+    useState(false);
+  const [emailImportSuccess, setEmailImportSuccess] =
+    useState<string | null>(null);
 
   const [reminderApp, setReminderApp] = useState<Application | null>(null);
   const [reminderTitle, setReminderTitle] = useState("Follow up");
@@ -170,6 +187,17 @@ function ApplicationsPage() {
     };
   }, []);
 
+  const emailImportMatch = useMemo(
+    () =>
+      emailImportPreview
+        ? findMatchingApplicationFromEmail(
+            emailImportPreview,
+            apps,
+          )
+        : null,
+    [emailImportPreview, apps],
+  );
+
   const stats = useMemo(() => summarise(apps), [apps]);
 
   const attentionApps = useMemo(
@@ -179,6 +207,197 @@ function ApplicationsPage() {
       ),
     [apps],
   );
+
+  const previewEmailImport = () => {
+    setEmailImportError(null);
+    setEmailImportSuccess(null);
+    setEmailImportPreview(null);
+
+    const parsed = parsePastedRecruitmentEmail(
+      emailImportText,
+    );
+
+    if (!parsed) {
+      setEmailImportError(
+        "JobLens couldn’t confidently detect an application status from this email.",
+      );
+      return;
+    }
+
+    setEmailImportPreview(parsed);
+  };
+
+  const resetEmailImport = () => {
+    setEmailImportText("");
+    setEmailImportPreview(null);
+    setEmailImportError(null);
+    setEmailImportSuccess(null);
+  };
+
+  const confirmEmailImport = async () => {
+    if (!emailImportPreview) return;
+
+    setEmailImportBusy(true);
+    setEmailImportError(null);
+    setEmailImportSuccess(null);
+
+    try {
+      if (emailImportMatch) {
+        const application =
+          emailImportMatch.application;
+
+        if (
+          application.status ===
+          emailImportPreview.status
+        ) {
+          setEmailImportSuccess(
+            "This application is already up to date.",
+          );
+          return;
+        }
+
+        const statusOrder: Record<
+          ApplicationStatus,
+          number
+        > = {
+          Saved: 0,
+          Applied: 1,
+          Interview: 2,
+          Case: 3,
+          Offer: 4,
+          Rejected: 5,
+        };
+
+        if (
+          emailImportPreview.status !==
+            "Rejected" &&
+          statusOrder[application.status] >
+            statusOrder[
+              emailImportPreview.status
+            ]
+        ) {
+          setEmailImportError(
+            `This application is already further along (${application.status}). JobLens won’t move it backwards to ${emailImportPreview.status}.`,
+          );
+          return;
+        }
+
+        const patch = {
+          status: emailImportPreview.status,
+          appliedAt:
+            application.appliedAt ??
+            emailImportPreview.applicationDateIso ??
+            undefined,
+        };
+
+        if (cloudMode) {
+          const updated =
+            await updateCloudApplication(
+              application.id,
+              patch,
+            );
+
+          setApps((current) =>
+            current.map((app) =>
+              app.id === application.id
+                ? updated
+                : app,
+            ),
+          );
+
+          try {
+            await recordApplicationEvent({
+              applicationId: application.id,
+              eventType: "status_change",
+              source: "manual",
+              fromStatus: application.status,
+              toStatus: updated.status,
+            });
+          } catch (eventError) {
+            console.error(
+              "[JobLens Email Import] Timeline event failed:",
+              eventError,
+            );
+          }
+        } else {
+          setApps(
+            updateApplication(
+              application.id,
+              patch,
+            ),
+          );
+        }
+
+        setEmailImportSuccess(
+          `Updated ${application.companyName} to ${emailImportPreview.status}.`,
+        );
+      } else {
+        if (
+          !emailImportPreview.companySuggestion ||
+          !emailImportPreview.jobTitleSuggestion
+        ) {
+          setEmailImportError(
+            "JobLens needs both a company and position before it can create an application.",
+          );
+          return;
+        }
+
+        const payload = {
+          jobTitle:
+            emailImportPreview.jobTitleSuggestion,
+          companyName:
+            emailImportPreview.companySuggestion,
+          status: emailImportPreview.status,
+          appliedAt:
+            emailImportPreview.applicationDateIso ||
+            undefined,
+        };
+
+        if (cloudMode) {
+          const created =
+            await createCloudApplication(payload);
+
+          setApps((current) => [
+            created,
+            ...current,
+          ]);
+
+          try {
+            await recordApplicationEvent({
+              applicationId: created.id,
+              eventType: "created",
+              source: "manual",
+              toStatus: created.status,
+              occurredAt: created.createdAt,
+            });
+          } catch (eventError) {
+            console.error(
+              "[JobLens Email Import] Timeline creation failed:",
+              eventError,
+            );
+          }
+        } else {
+          createApplication(payload);
+          setApps(loadApplications());
+        }
+
+        setEmailImportSuccess(
+          `Added ${emailImportPreview.jobTitleSuggestion} at ${emailImportPreview.companySuggestion}.`,
+        );
+      }
+    } catch (error) {
+      console.error(
+        "[JobLens Email Import] Import failed:",
+        error,
+      );
+
+      setEmailImportError(
+        "JobLens couldn’t save this application. Nothing else was changed.",
+      );
+    } finally {
+      setEmailImportBusy(false);
+    }
+  };
 
   const openAdd = () => {
     setEditingId(null);
@@ -459,15 +678,29 @@ function ApplicationsPage() {
                 Track every opportunity from saved role to final decision.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={openAdd}
-              className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
-              style={{ background: "var(--gradient-hero)" }}
-            >
-              <Plus className="h-4 w-4" aria-hidden />
-              Add Application
-            </button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => {
+                  setEmailImportOpen((current) => !current);
+                  setEmailImportError(null);
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/5"
+              >
+                <Mail className="h-4 w-4" aria-hidden />
+                Import Email
+              </button>
+
+              <button
+                type="button"
+                onClick={openAdd}
+                className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+                style={{ background: "var(--gradient-hero)" }}
+              >
+                <Plus className="h-4 w-4" aria-hidden />
+                Add Application
+              </button>
+            </div>
           </div>
 
           {/* Summary */}
@@ -477,6 +710,188 @@ function ApplicationsPage() {
             <Stat label="Interviews" value={stats.interviews} />
             <Stat label="Offers" value={stats.offers} />
           </div>
+
+          {emailImportOpen && (
+            <section className="mt-5 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 text-[color:var(--color-surface-foreground)] md:p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--color-primary)]">
+                    Email Status Import
+                  </p>
+                  <h2 className="mt-1 text-lg font-semibold">
+                    Paste a recruitment email
+                  </h2>
+                  <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
+                    JobLens reads the pasted text locally and previews the likely status before anything changes.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmailImportOpen(false);
+                    resetEmailImport();
+                  }}
+                  className="rounded-lg p-2 text-[color:var(--color-muted-foreground)] transition hover:bg-[color:var(--color-muted)]"
+                  aria-label="Close email import"
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
+
+              <textarea
+                value={emailImportText}
+                onChange={(event) => {
+                  setEmailImportText(event.target.value);
+                  setEmailImportPreview(null);
+                  setEmailImportError(null);
+                }}
+                rows={8}
+                placeholder={"From: Bayer Careers <careers@bayer.com>\nSubject: Interview invitation\n\nWe would like to invite you to an interview..."}
+                className="mt-5 w-full resize-y rounded-xl border border-[color:var(--color-border)] bg-transparent px-4 py-3 text-sm outline-none transition placeholder:text-[color:var(--color-muted-foreground)] focus:border-[color:var(--color-primary)]"
+              />
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={previewEmailImport}
+                  disabled={!emailImportText.trim()}
+                  className="rounded-xl px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-40"
+                  style={{ background: "var(--gradient-hero)" }}
+                >
+                  Preview Status
+                </button>
+
+                {(emailImportText || emailImportPreview) && (
+                  <button
+                    type="button"
+                    onClick={resetEmailImport}
+                    className="rounded-xl border border-[color:var(--color-border)] px-4 py-2 text-sm font-semibold transition hover:bg-[color:var(--color-muted)]"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {emailImportError && (
+                <p className="mt-4 text-sm text-[color:var(--color-danger)]">
+                  {emailImportError}
+                </p>
+              )}
+
+              {emailImportPreview && (
+                <div className="mt-5 rounded-xl border border-[color:var(--color-primary)]/20 bg-[color:var(--color-primary)]/10 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--color-primary)]">
+                    Preview
+                  </p>
+
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                    <div>
+                      <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                        Company
+                      </p>
+                      <p className="mt-1 font-semibold">
+                        {emailImportPreview.companySuggestion || "Not detected"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                        Status
+                      </p>
+                      <p className="mt-1 font-semibold">
+                        {emailImportPreview.status}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                        Position
+                      </p>
+                      <p className="mt-1 font-semibold">
+                        {emailImportPreview.jobTitleSuggestion || "Not detected"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                        Application Date
+                      </p>
+                      <p className="mt-1 font-semibold">
+                        {emailImportPreview.applicationDateSuggestion || "Not detected"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                        Confidence
+                      </p>
+                      <p className="mt-1 font-semibold capitalize">
+                        {emailImportPreview.confidence}
+                      </p>
+                    </div>
+                  </div>
+
+                  {emailImportMatch ? (
+                    <div className="mt-4 rounded-xl border border-[color:var(--color-success)]/25 bg-[color:var(--color-success)]/10 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--color-success)]">
+                        Matching application found
+                      </p>
+
+                      <p className="mt-2 font-semibold">
+                        {emailImportMatch.application.jobTitle}
+                      </p>
+
+                      <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
+                        {emailImportMatch.application.companyName}
+                        {" · "}
+                        Current status: {emailImportMatch.application.status}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="mt-4 rounded-xl border border-dashed border-[color:var(--color-border)] p-4">
+                      <p className="text-sm font-medium">
+                        No unique tracker match found.
+                      </p>
+                      <p className="mt-1 text-xs text-[color:var(--color-muted-foreground)]">
+                        JobLens will not change any application until a unique match is identified and you confirm it.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={confirmEmailImport}
+                      disabled={emailImportBusy}
+                      className="rounded-xl px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+                      style={{ background: "var(--gradient-hero)" }}
+                    >
+                      {emailImportBusy
+                        ? "Saving..."
+                        : emailImportMatch
+                          ? `Update to ${emailImportPreview.status}`
+                          : "Create Application"}
+                    </button>
+
+                    <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                      Nothing changes until you confirm.
+                    </p>
+                  </div>
+
+                  {emailImportSuccess && (
+                    <p className="mt-4 text-sm font-medium text-[color:var(--color-success)]">
+                      {emailImportSuccess}
+                    </p>
+                  )}
+
+                  <p className="mt-4 text-xs text-[color:var(--color-muted-foreground)]">
+                    The pasted email itself is not stored.
+                  </p>
+                </div>
+              )}
+            </section>
+          )}
 
           {hydrated && attentionApps.length > 0 && (
             <div className="mt-4 rounded-2xl border border-[color:var(--color-primary)]/20 bg-[color:var(--color-primary)]/10 px-5 py-4">
