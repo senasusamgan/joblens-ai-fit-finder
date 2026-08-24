@@ -78,6 +78,24 @@ function rowToApplicationEvent(
   };
 }
 
+export async function loadAllApplicationEvents(): Promise<ApplicationEvent[]> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) return [];
+
+  const { data, error } = await supabase
+    .from("application_events")
+    .select("*")
+    .eq("user_id", session.user.id)
+    .order("occurred_at", { ascending: true });
+
+  if (error) throw error;
+
+  return (data ?? []).map(rowToApplicationEvent);
+}
+
 export async function loadApplicationEvents(
   applicationId: string,
 ): Promise<ApplicationEvent[]> {
