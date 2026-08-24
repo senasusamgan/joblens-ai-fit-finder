@@ -721,7 +721,6 @@ function ApplicationsPage() {
             <div className="mt-6 border-t border-[color:var(--color-border)] pt-4">
               <p className="text-xs text-[color:var(--color-muted-foreground)]">
                 Timeline stores application stage history only.
-                Gmail message content is not saved here.
               </p>
             </div>
           </div>

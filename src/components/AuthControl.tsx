@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { clearGoogleProviderToken } from "@/lib/gmail";
 import { renderGoogleSignInButton } from "@/lib/google-identity";
 
 export function AuthControl() {
@@ -61,7 +60,6 @@ export function AuthControl() {
 
   const signOut = async () => {
     setBusy(true);
-    clearGoogleProviderToken();
     await supabase.auth.signOut();
     setBusy(false);
   };

@@ -7,15 +7,6 @@ type GoogleCredentialResponse = {
   credential?: string;
 };
 
-type GoogleTokenResponse = {
-  access_token?: string;
-  expires_in?: number;
-  scope?: string;
-  token_type?: string;
-  error?: string;
-  error_description?: string;
-};
-
 type GoogleIdentityApi = {
   initialize: (options: {
     client_id: string;
@@ -39,30 +30,11 @@ type GoogleIdentityApi = {
   ) => void;
 };
 
-type GoogleTokenClient = {
-  requestAccessToken: (options?: {
-    prompt?: string;
-  }) => void;
-};
-
-type GoogleOAuth2Api = {
-  initTokenClient: (options: {
-    client_id: string;
-    scope: string;
-    callback: (response: GoogleTokenResponse) => void;
-    error_callback?: (error: {
-      type?: string;
-      message?: string;
-    }) => void;
-  }) => GoogleTokenClient;
-};
-
 declare global {
   interface Window {
     google?: {
       accounts: {
         id: GoogleIdentityApi;
-        oauth2: GoogleOAuth2Api;
       };
     };
   }
@@ -163,59 +135,5 @@ export async function renderGoogleSignInButton(
     shape: isCompactViewport ? "circle" : "pill",
     logo_alignment: "left",
     width: isCompactViewport ? undefined : 280,
-  });
-}
-
-export async function requestGoogleAccessToken(
-  scope: string,
-): Promise<string> {
-  await loadGoogleIdentityServices();
-
-  const google = window.google;
-
-  if (!google?.accounts?.oauth2) {
-    throw new Error("Google OAuth is unavailable.");
-  }
-
-  return new Promise((resolve, reject) => {
-    const client = google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_CLIENT_ID,
-      scope,
-      callback: (response) => {
-        if (response.error) {
-          reject(
-            new Error(
-              response.error_description ??
-                response.error,
-            ),
-          );
-          return;
-        }
-
-        if (!response.access_token) {
-          reject(
-            new Error(
-              "Google did not return an access token.",
-            ),
-          );
-          return;
-        }
-
-        resolve(response.access_token);
-      },
-      error_callback: (error) => {
-        reject(
-          new Error(
-            error.message ??
-              error.type ??
-              "Google OAuth popup failed.",
-          ),
-        );
-      },
-    });
-
-    client.requestAccessToken({
-      prompt: "consent",
-    });
   });
 }

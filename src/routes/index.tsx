@@ -293,8 +293,7 @@ function Index() {
           <p className="mt-4 text-lg md:text-xl text-white/80">Know your fit. Improve your application.</p>
           <p className="mt-2 text-sm md:text-base text-white/55 max-w-2xl mx-auto">
             JobLens AI is an AI-powered job application analysis and tracking tool for students and recent graduates.
-            It compares your CV with a job description, helps you track applications, and, when you choose to connect Gmail,
-            can scan your inbox in read-only mode for job-application status updates.
+            It compares your CV with a job description, helps you track applications, and surfaces clear next steps throughout your job search.
           </p>
         </div>
       </header>
