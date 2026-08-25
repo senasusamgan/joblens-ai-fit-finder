@@ -176,6 +176,10 @@ export const Route = createFileRoute("/api/interview-prep")({
                   upstream.headers.get("content-type") ??
                   "application/json",
                 "cache-control": "no-store",
+                "x-joblens-interview-prep":
+                  upstream.headers.get(
+                    "x-joblens-interview-prep",
+                  ) ?? "ai",
               },
             });
           }
@@ -194,9 +198,12 @@ STRICT GROUNDING RULES:
 - Never invent candidate experience, skills, education, achievements, employers, projects or metrics.
 - The candidate CV is NOT available in this request.
 - STAR items must therefore be prompts that help the candidate choose a real example from their own experience, not fabricated answers.
-- Base role-specific guidance only on the supplied job title, company, job description and application notes.
-- Be concise, specific and useful.
-- Do not claim knowledge about the company's interview process unless it appears in the supplied text.
+- Use ONLY the supplied job title, company name, job description and application notes as factual sources.
+- The company name is an identifier, NOT permission to use outside or prior knowledge about that company.
+- Never infer or assert company values, culture, business units, products, industries, strategy, sustainability commitments, reputation, interview process or hiring preferences unless that information is explicitly present in the supplied job description or notes.
+- If job description or notes are missing, keep company-specific guidance generic. You may suggest questions the candidate can ask to learn unknown information, but do not present unknown information as fact.
+- Do not use phrases such as "the company values", "the company is known for", "their commitment to", or equivalent unless the supplied text directly supports the claim.
+- Be concise, specific and useful while staying within the supplied evidence.
 - Output valid JSON only.`;
 
           const prompt = `JOB TITLE: ${jobTitle}
@@ -277,7 +284,10 @@ Requirements:
           }
 
           return Response.json(result.data, {
-            headers: { "cache-control": "no-store" },
+            headers: {
+              "cache-control": "no-store",
+              "x-joblens-interview-prep": "ai",
+            },
           });
         } catch (error) {
           console.error("[JobLens Interview Prep] Error:", error);
