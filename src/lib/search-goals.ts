@@ -12,6 +12,7 @@ export type WorkModel =
 
 export interface SearchGoals {
   targetRoles: string[];
+  targetIndustries: string[];
   locations: string[];
   workModels: WorkModel[];
   weeklyApplicationGoal: number;
@@ -20,6 +21,7 @@ export interface SearchGoals {
 
 export const DEFAULT_SEARCH_GOALS: SearchGoals = {
   targetRoles: [],
+  targetIndustries: [],
   locations: [],
   workModels: [],
   weeklyApplicationGoal: 5,
@@ -93,6 +95,9 @@ export function sanitiseSearchGoals(
   return {
     targetRoles: cleanList(
       value.targetRoles,
+    ),
+    targetIndustries: cleanList(
+      value.targetIndustries,
     ),
     locations: cleanList(
       value.locations,
@@ -168,6 +173,7 @@ export function hasSearchGoals(
 ): boolean {
   return (
     goals.targetRoles.length > 0 ||
+    goals.targetIndustries.length > 0 ||
     goals.locations.length > 0 ||
     goals.workModels.length > 0 ||
     goals.weeklyApplicationGoal !==

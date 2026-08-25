@@ -24,6 +24,8 @@ function rowToSearchGoals(
 ): SearchGoals {
   return sanitiseSearchGoals({
     targetRoles: row.target_roles,
+    targetIndustries:
+      row.target_industries,
     locations: row.locations,
     workModels: row.work_models,
     weeklyApplicationGoal:
@@ -41,6 +43,8 @@ function goalsToInsert(
   return {
     user_id: userId,
     target_roles: clean.targetRoles,
+    target_industries:
+      clean.targetIndustries,
     locations: clean.locations,
     work_models: clean.workModels,
     weekly_application_goal:
@@ -114,16 +118,24 @@ export async function migrateGuestSearchGoalsToCloud():
   const existingCloud =
     await loadCloudSearchGoals();
 
-  // Cloud wins when the account already
-  // has an established strategy.
-  if (existingCloud) {
+  const localGoals = loadSearchGoals();
+
+  // Cloud wins only when the account
+  // already has a meaningful strategy.
+  // An empty/default cloud row should not
+  // overwrite useful browser goals.
+  if (
+    existingCloud &&
+    hasSearchGoals(existingCloud)
+  ) {
     return existingCloud;
   }
 
-  const localGoals = loadSearchGoals();
-
   if (!hasSearchGoals(localGoals)) {
-    return localGoals;
+    return (
+      existingCloud ??
+      localGoals
+    );
   }
 
   const saved =
