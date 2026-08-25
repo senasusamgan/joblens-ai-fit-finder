@@ -6,6 +6,7 @@ import type {
 export type NextBestActionKind =
   | "analyze"
   | "reminder"
+  | "interview_prep"
   | "edit"
   | "none";
 
@@ -100,8 +101,8 @@ function actionForStatus(
         title: "Prepare for the interview",
         description:
           "Review the role, prepare your strongest examples, and make sure the interview time is on your calendar.",
-        ctaLabel: "Set interview reminder",
-        kind: "reminder",
+        ctaLabel: "Prepare now",
+        kind: "interview_prep",
         priority: "high",
       };
 

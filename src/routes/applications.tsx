@@ -80,6 +80,24 @@ const statusTone: Record<ApplicationStatus, string> = {
   Rejected: "bg-[color:var(--color-danger)]/15 text-[color:var(--color-danger)]",
 };
 
+type InterviewPrepResult = {
+  introStrategy: string;
+  likelyQuestions: {
+    question: string;
+    whyItMayBeAsked: string;
+    answerDirection: string;
+  }[];
+  starPrompts: {
+    competency: string;
+    prompt: string;
+  }[];
+  riskAreas: {
+    area: string;
+    preparation: string;
+  }[];
+  questionsToAsk: string[];
+};
+
 type FormState = {
   jobTitle: string;
   companyName: string;
@@ -120,6 +138,13 @@ function ApplicationsPage() {
     useState<string | null>(null);
   const [emailImportStatusEdited, setEmailImportStatusEdited] =
     useState(false);
+
+  const [interviewPrepApp, setInterviewPrepApp] = useState<Application | null>(null);
+  const [interviewPrepResult, setInterviewPrepResult] =
+    useState<InterviewPrepResult | null>(null);
+  const [interviewPrepBusy, setInterviewPrepBusy] = useState(false);
+  const [interviewPrepError, setInterviewPrepError] =
+    useState<string | null>(null);
 
   const [reminderApp, setReminderApp] = useState<Application | null>(null);
   const [reminderTitle, setReminderTitle] = useState("Follow up");
@@ -399,6 +424,43 @@ function ApplicationsPage() {
       );
     } finally {
       setEmailImportBusy(false);
+    }
+  };
+
+  const generateInterviewPrep = async () => {
+    if (!interviewPrepApp) return;
+
+    setInterviewPrepBusy(true);
+    setInterviewPrepError(null);
+    setInterviewPrepResult(null);
+
+    try {
+      const response = await fetch("/api/interview-prep", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jobTitle: interviewPrepApp.jobTitle,
+          companyName: interviewPrepApp.companyName,
+          jobDescription: interviewPrepApp.jobDescription ?? "",
+          notes: interviewPrepApp.notes ?? "",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Interview prep failed: ${response.status}`);
+      }
+
+      const data = (await response.json()) as InterviewPrepResult;
+      setInterviewPrepResult(data);
+    } catch (error) {
+      console.error("[JobLens Interview Prep] Generation failed:", error);
+      setInterviewPrepError(
+        "JobLens couldn’t generate your interview prep. Please try again.",
+      );
+    } finally {
+      setInterviewPrepBusy(false);
     }
   };
 
@@ -1038,6 +1100,11 @@ function ApplicationsPage() {
                             onDelete={remove}
                             onReminder={openReminder}
                             onTimeline={openTimeline}
+                            onInterviewPrep={(app) => {
+                              setInterviewPrepApp(app);
+                              setInterviewPrepResult(null);
+                              setInterviewPrepError(null);
+                            }}
                           />
                         ))
                       )}
@@ -1062,6 +1129,193 @@ function ApplicationsPage() {
           </p>
         </div>
       </main>
+
+      {interviewPrepApp && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="interview-prep-title"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setInterviewPrepApp(null);
+          }}
+        >
+          <div className="card-surface max-h-[90vh] w-full max-w-2xl overflow-y-auto p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--color-primary)]">
+                  Interview Prep
+                </p>
+                <h2 id="interview-prep-title" className="mt-1 text-xl font-semibold">
+                  {interviewPrepApp.jobTitle}
+                </h2>
+                <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
+                  {interviewPrepApp.companyName}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setInterviewPrepApp(null)}
+                aria-label="Close interview prep"
+                className="rounded-lg p-1.5 text-[color:var(--color-muted-foreground)] hover:bg-[color:var(--color-muted)]"
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+
+            <div className="mt-6">
+              {!interviewPrepResult && (
+                <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/40 p-5">
+                  <p className="text-sm font-semibold">
+                    Build your interview preparation pack
+                  </p>
+                  <p className="mt-2 text-sm text-[color:var(--color-muted-foreground)]">
+                    JobLens will prepare role-specific questions, STAR prompts,
+                    risk areas and smart questions to ask the interviewer.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={generateInterviewPrep}
+                    disabled={interviewPrepBusy}
+                    className="mt-4 inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{ background: "var(--gradient-hero)" }}
+                  >
+                    <Sparkles className="h-4 w-4" aria-hidden />
+                    {interviewPrepBusy
+                      ? "Preparing..."
+                      : "Generate Interview Prep"}
+                  </button>
+                </div>
+              )}
+
+              {interviewPrepError && (
+                <p className="mt-4 text-sm text-[color:var(--color-danger)]">
+                  {interviewPrepError}
+                </p>
+              )}
+
+              {interviewPrepResult && (
+                <div className="space-y-5">
+                  <section className="rounded-xl border border-[color:var(--color-primary)]/20 bg-[color:var(--color-primary)]/10 p-5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-primary)]">
+                      Your opening
+                    </p>
+                    <p className="mt-2 text-sm leading-relaxed">
+                      {interviewPrepResult.introStrategy}
+                    </p>
+                  </section>
+
+                  <section>
+                    <h3 className="text-sm font-semibold">
+                      Likely interview questions
+                    </h3>
+                    <div className="mt-3 space-y-3">
+                      {interviewPrepResult.likelyQuestions.map(
+                        (item, index) => (
+                          <div
+                            key={`${item.question}-${index}`}
+                            className="rounded-xl border border-[color:var(--color-border)] p-4"
+                          >
+                            <p className="text-sm font-semibold">
+                              {index + 1}. {item.question}
+                            </p>
+                            <p className="mt-2 text-xs text-[color:var(--color-muted-foreground)]">
+                              Why: {item.whyItMayBeAsked}
+                            </p>
+                            <p className="mt-2 text-sm">
+                              <span className="font-medium">
+                                Answer direction:
+                              </span>{" "}
+                              {item.answerDirection}
+                            </p>
+                          </div>
+                        ),
+                      )}
+                    </div>
+                  </section>
+
+                  <section>
+                    <h3 className="text-sm font-semibold">
+                      STAR examples to prepare
+                    </h3>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      {interviewPrepResult.starPrompts.map(
+                        (item, index) => (
+                          <div
+                            key={`${item.competency}-${index}`}
+                            className="rounded-xl border border-[color:var(--color-border)] p-4"
+                          >
+                            <p className="text-sm font-semibold">
+                              {item.competency}
+                            </p>
+                            <p className="mt-2 text-xs leading-relaxed text-[color:var(--color-muted-foreground)]">
+                              {item.prompt}
+                            </p>
+                          </div>
+                        ),
+                      )}
+                    </div>
+                  </section>
+
+                  <section>
+                    <h3 className="text-sm font-semibold">
+                      Risk areas
+                    </h3>
+                    <div className="mt-3 space-y-3">
+                      {interviewPrepResult.riskAreas.map(
+                        (item, index) => (
+                          <div
+                            key={`${item.area}-${index}`}
+                            className="rounded-xl border border-[color:var(--color-warning)]/25 bg-[color:var(--color-warning)]/10 p-4"
+                          >
+                            <p className="text-sm font-semibold">
+                              {item.area}
+                            </p>
+                            <p className="mt-1 text-xs text-[color:var(--color-muted-foreground)]">
+                              {item.preparation}
+                            </p>
+                          </div>
+                        ),
+                      )}
+                    </div>
+                  </section>
+
+                  <section>
+                    <h3 className="text-sm font-semibold">
+                      Smart questions to ask
+                    </h3>
+                    <ol className="mt-3 space-y-2">
+                      {interviewPrepResult.questionsToAsk.map(
+                        (question, index) => (
+                          <li
+                            key={`${question}-${index}`}
+                            className="rounded-xl border border-[color:var(--color-border)] px-4 py-3 text-sm"
+                          >
+                            {index + 1}. {question}
+                          </li>
+                        ),
+                      )}
+                    </ol>
+                  </section>
+
+                  <button
+                    type="button"
+                    onClick={generateInterviewPrep}
+                    disabled={interviewPrepBusy}
+                    className="text-sm font-semibold text-[color:var(--color-primary)] hover:underline disabled:opacity-50"
+                  >
+                    {interviewPrepBusy
+                      ? "Regenerating..."
+                      : "Regenerate prep"}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {timelineApp && (
         <div
@@ -1457,6 +1711,7 @@ function AppCard({
   onDelete,
   onReminder,
   onTimeline,
+  onInterviewPrep,
 }: {
   app: Application;
   onStatus: (id: string, s: ApplicationStatus) => void;
@@ -1464,6 +1719,7 @@ function AppCard({
   onDelete: (a: Application) => void;
   onReminder: (a: Application) => void;
   onTimeline: (a: Application) => void;
+  onInterviewPrep: (a: Application) => void;
 }) {
   const date = app.appliedAt ? formatDate(app.appliedAt) : formatDate(app.createdAt);
   const dateLabel = app.appliedAt
@@ -1538,6 +1794,14 @@ function AppCard({
           >
             {nextAction.ctaLabel} →
           </Link>
+        ) : nextAction.kind === "interview_prep" && nextAction.ctaLabel ? (
+          <button
+            type="button"
+            onClick={() => onInterviewPrep(app)}
+            className="mt-2 inline-flex text-[11px] font-semibold text-[color:var(--color-primary)] hover:underline"
+          >
+            {nextAction.ctaLabel} →
+          </button>
         ) : nextAction.kind === "reminder" && nextAction.ctaLabel ? (
           <button
             type="button"
