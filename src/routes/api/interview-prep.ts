@@ -10,6 +10,27 @@ const RequestSchema = z.object({
   notes: z.string().optional().default(""),
 });
 
+const COMPANY_PLACEHOLDER = "[TARGET COMPANY]";
+
+function maskCompanyName(
+  text: string,
+  companyName: string,
+) {
+  if (!text || !companyName.trim()) {
+    return text;
+  }
+
+  const escaped = companyName.replace(
+    /[.*+?^${}()|[\]\\]/g,
+    "\\$&",
+  );
+
+  return text.replace(
+    new RegExp(escaped, "gi"),
+    COMPANY_PLACEHOLDER,
+  );
+}
+
 const InterviewPrepSchema = z.object({
   introStrategy: z.string(),
   likelyQuestions: z.array(
@@ -190,6 +211,18 @@ export const Route = createFileRoute("/api/interview-prep")({
           const { jobTitle, companyName, jobDescription, notes } =
             parsed.data;
 
+          const groundedJobDescription =
+            maskCompanyName(
+              jobDescription,
+              companyName,
+            );
+
+          const groundedNotes =
+            maskCompanyName(
+              notes,
+              companyName,
+            );
+
           const system = `You are JobLens AI Interview Coach.
 
 Prepare practical interview guidance for a job candidate.
@@ -199,7 +232,9 @@ STRICT GROUNDING RULES:
 - The candidate CV is NOT available in this request.
 - STAR items must therefore be prompts that help the candidate choose a real example from their own experience, not fabricated answers.
 - Use ONLY the supplied job title, company name, job description and application notes as factual sources.
-- The company name is an identifier, NOT permission to use outside or prior knowledge about that company.
+- You do NOT know the real identity of the company. It has been deliberately anonymized as [TARGET COMPANY].
+- Never guess, reconstruct, infer, or identify the real company behind [TARGET COMPANY].
+- Treat [TARGET COMPANY] only as a generic employer label.
 - Never infer or assert company values, culture, business units, products, industries, strategy, sustainability commitments, reputation, interview process or hiring preferences unless that information is explicitly present in the supplied job description or notes.
 - If job description or notes are missing, keep company-specific guidance generic. You may suggest questions the candidate can ask to learn unknown information, but do not present unknown information as fact.
 - Do not use phrases such as "the company values", "the company is known for", "their commitment to", or equivalent unless the supplied text directly supports the claim.
@@ -207,13 +242,13 @@ STRICT GROUNDING RULES:
 - Output valid JSON only.`;
 
           const prompt = `JOB TITLE: ${jobTitle}
-COMPANY: ${companyName}
+COMPANY: ${COMPANY_PLACEHOLDER}
 
 JOB DESCRIPTION:
-${jobDescription || "(not available)"}
+${groundedJobDescription || "(not available)"}
 
 APPLICATION NOTES:
-${notes || "(none)"}
+${groundedNotes || "(none)"}
 
 Create an interview preparation pack matching exactly:
 
