@@ -286,6 +286,8 @@ function ApplicationsPage() {
   const [interviewPrepBusy, setInterviewPrepBusy] = useState(false);
   const [interviewPrepError, setInterviewPrepError] =
     useState<string | null>(null);
+  const [interviewPrepEvidence, setInterviewPrepEvidence] =
+    useState("");
 
   const [reminderApp, setReminderApp] = useState<Application | null>(null);
   const [reminderTitle, setReminderTitle] = useState("Follow up");
@@ -604,6 +606,23 @@ function ApplicationsPage() {
     setInterviewPrepResult(null);
 
     try {
+      const prepContext = [
+        interviewPrepApp.notes?.trim()
+          ? `APPLICATION NOTES:\n${interviewPrepApp.notes.trim()}`
+          : "",
+        typeof interviewPrepApp.matchScore === "number"
+          ? `JOBLENS MATCH SCORE: ${interviewPrepApp.matchScore}%`
+          : "",
+        interviewPrepApp.verdict?.trim()
+          ? `JOBLENS ANALYSIS VERDICT:\n${interviewPrepApp.verdict.trim()}`
+          : "",
+        interviewPrepEvidence.trim()
+          ? `CANDIDATE EVIDENCE EXPLICITLY PROVIDED FOR THIS PREP SESSION:\n${interviewPrepEvidence.trim()}\nUse only these candidate facts. Do not invent or expand beyond them.`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+
       const response = await fetch("/api/interview-prep", {
         method: "POST",
         headers: {
@@ -613,7 +632,7 @@ function ApplicationsPage() {
           jobTitle: interviewPrepApp.jobTitle,
           companyName: interviewPrepApp.companyName,
           jobDescription: interviewPrepApp.jobDescription ?? "",
-          notes: interviewPrepApp.notes ?? "",
+          notes: prepContext,
         }),
       });
 
@@ -1264,6 +1283,7 @@ function ApplicationsPage() {
                         setInterviewPrepApp(topActionApp);
                         setInterviewPrepResult(null);
                         setInterviewPrepError(null);
+                        setInterviewPrepEvidence("");
                       }}
                       className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[color:var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
                     >
@@ -1358,6 +1378,7 @@ function ApplicationsPage() {
                               setInterviewPrepApp(app);
                               setInterviewPrepResult(null);
                               setInterviewPrepError(null);
+                              setInterviewPrepEvidence("");
                             }}
                           />
                         ))
@@ -1391,10 +1412,13 @@ function ApplicationsPage() {
           aria-modal="true"
           aria-labelledby="interview-prep-title"
           onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setInterviewPrepApp(null);
+            if (e.target === e.currentTarget) {
+              setInterviewPrepApp(null);
+              setInterviewPrepEvidence("");
+            }
           }}
         >
-          <div className="card-surface max-h-[90vh] w-full max-w-2xl overflow-y-auto p-6">
+          <div className="card-surface max-h-[90vh] w-full max-w-3xl overflow-y-auto p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--color-primary)]">
@@ -1410,7 +1434,10 @@ function ApplicationsPage() {
 
               <button
                 type="button"
-                onClick={() => setInterviewPrepApp(null)}
+                onClick={() => {
+                  setInterviewPrepApp(null);
+                  setInterviewPrepEvidence("");
+                }}
                 aria-label="Close interview prep"
                 className="rounded-lg p-1.5 text-[color:var(--color-muted-foreground)] hover:bg-[color:var(--color-muted)]"
               >
@@ -1420,26 +1447,96 @@ function ApplicationsPage() {
 
             <div className="mt-6">
               {!interviewPrepResult && (
-                <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/40 p-5">
-                  <p className="text-sm font-semibold">
-                    Build your interview preparation pack
-                  </p>
-                  <p className="mt-2 text-sm text-[color:var(--color-muted-foreground)]">
-                    JobLens will prepare role-specific questions, STAR prompts,
-                    risk areas and smart questions to ask the interviewer.
-                  </p>
+                <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/40 p-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold">
+                        Build your interview preparation pack
+                      </p>
+                      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[color:var(--color-muted-foreground)]">
+                        JobLens uses the role details and your existing analysis context.
+                        Add a few real examples below to make the prep more personal.
+                      </p>
+                    </div>
+
+                    <span className="shrink-0 rounded-full border border-[color:var(--color-primary)]/20 bg-[color:var(--color-primary)]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--color-primary)]">
+                      Evidence grounded
+                    </span>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {interviewPrepApp.jobDescription && (
+                      <span className="rounded-full border border-[color:var(--color-border)] bg-white px-2.5 py-1 text-[11px] font-medium text-[color:var(--color-muted-foreground)]">
+                        Job description
+                      </span>
+                    )}
+
+                    {typeof interviewPrepApp.matchScore === "number" && (
+                      <span className="rounded-full border border-[color:var(--color-border)] bg-white px-2.5 py-1 text-[11px] font-medium text-[color:var(--color-muted-foreground)]">
+                        {interviewPrepApp.matchScore}% match
+                      </span>
+                    )}
+
+                    {interviewPrepApp.verdict && (
+                      <span className="rounded-full border border-[color:var(--color-border)] bg-white px-2.5 py-1 text-[11px] font-medium text-[color:var(--color-muted-foreground)]">
+                        Analysis verdict
+                      </span>
+                    )}
+
+                    {interviewPrepEvidence.trim() && (
+                      <span className="rounded-full border border-[color:var(--color-success)]/25 bg-[color:var(--color-success)]/10 px-2.5 py-1 text-[11px] font-medium text-[color:var(--color-success)]">
+                        Your evidence
+                      </span>
+                    )}
+                  </div>
+
+                  <label className="mt-5 block">
+                    <span className="text-sm font-semibold">
+                      Your evidence
+                      <span className="ml-1 text-xs font-normal text-[color:var(--color-muted-foreground)]">
+                        (optional)
+                      </span>
+                    </span>
+
+                    <span className="mt-1 block text-xs leading-relaxed text-[color:var(--color-muted-foreground)]">
+                      Add 3–5 real bullets from your experience, projects or CV that
+                      you may want to use in the interview.
+                    </span>
+
+                    <textarea
+                      rows={5}
+                      maxLength={3000}
+                      value={interviewPrepEvidence}
+                      onChange={(event) =>
+                        setInterviewPrepEvidence(event.target.value)
+                      }
+                      placeholder={"• Built or improved...\n• Led or collaborated on...\n• Used a relevant tool or skill...\n• Solved a difficult problem..."}
+                      className="mt-3 w-full resize-y rounded-xl border border-[color:var(--color-border)] bg-white px-3 py-3 text-sm leading-relaxed text-[color:var(--color-surface-foreground)] outline-none transition focus:border-[color:var(--color-primary)]"
+                    />
+                  </label>
+
+                  <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-[color:var(--color-muted-foreground)]">
+                    <span>
+                      Used for this prep request · not saved to your application tracker.
+                    </span>
+                    <span className="shrink-0">
+                      {interviewPrepEvidence.length}/3000
+                    </span>
+                  </div>
 
                   <button
                     type="button"
                     onClick={generateInterviewPrep}
                     disabled={interviewPrepBusy}
-                    className="mt-4 inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                     style={{ background: "var(--gradient-hero)" }}
                   >
                     <Sparkles className="h-4 w-4" aria-hidden />
                     {interviewPrepBusy
                       ? "Preparing..."
-                      : "Generate Interview Prep"}
+                      : interviewPrepEvidence.trim()
+                        ? "Generate Personalized Prep"
+                        : "Generate Interview Prep"}
                   </button>
                 </div>
               )}
@@ -1452,6 +1549,37 @@ function ApplicationsPage() {
 
               {interviewPrepResult && (
                 <div className="space-y-5">
+                  <section className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/35 p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--color-muted-foreground)]">
+                        Grounded in
+                      </span>
+
+                      {interviewPrepApp.jobDescription && (
+                        <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-medium">
+                          Role details
+                        </span>
+                      )}
+
+                      {typeof interviewPrepApp.matchScore === "number" && (
+                        <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-medium">
+                          JobLens analysis
+                        </span>
+                      )}
+
+                      {interviewPrepEvidence.trim() && (
+                        <span className="rounded-full bg-[color:var(--color-success)]/10 px-2.5 py-1 text-[10px] font-medium text-[color:var(--color-success)]">
+                          Your evidence
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="mt-2 text-xs leading-relaxed text-[color:var(--color-muted-foreground)]">
+                      Candidate examples should come only from evidence you supplied.
+                      JobLens does not need to save CV text in the tracker to personalize this prep.
+                    </p>
+                  </section>
+
                   <section className="rounded-xl border border-[color:var(--color-primary)]/20 bg-[color:var(--color-primary)]/10 p-5">
                     <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-primary)]">
                       Your opening
