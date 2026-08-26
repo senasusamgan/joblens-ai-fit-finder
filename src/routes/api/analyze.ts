@@ -131,6 +131,13 @@ export const Route = createFileRoute("/api/analyze")({
 
 ${langInstruction}
 
+PERSONAL VOICE:
+- Address the user directly in second person throughout the analysis.
+- In English, use "you" / "your". Do NOT refer to the user as "the candidate", "the applicant", "this candidate", or similar third-person labels.
+- In Turkish, address the user naturally and directly using second-person phrasing. Avoid "aday", "başvuran kişi", or other third-person labels when referring to the user.
+- Apply this to verdictExplanation, match explanations, gaps, blockers, CV suggestions, and disclaimer.
+- Keep recruiterMessage in its natural first-person applicant voice, because it is written for the user to send to a recruiter.
+
 GROUNDING — ABSOLUTE RULES:
 - Use ONLY information explicitly stated in the CV. Never invent, assume, or infer facts.
 - NEVER infer any of the following unless the CV states them verbatim: current location, city, country, residency, nationality, work authorization / visa status, age, gender, language proficiency, availability, total years of experience, internship duration, current employment status, salary.
