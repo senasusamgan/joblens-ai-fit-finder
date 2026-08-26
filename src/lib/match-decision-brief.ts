@@ -152,7 +152,7 @@ function getRecruiterPerspective(
     }
 
     if (strong > 0 || partial > 0) {
-      return `Adayın rol için anlamlı bir temeli var: ${strong} güçlü ve ${partial} kısmi eşleşme bulunuyor. Karar özellikle kalan boşlukların ve olası engellerin önemine bağlı.`;
+      return `Bu rol için anlamlı bir temelin var: ${strong} güçlü ve ${partial} kısmi eşleşmen bulunuyor. Karar özellikle kalan boşlukların ve olası engellerin önemine bağlı.`;
     }
 
     return "CV ile rol arasında sınırlı doğrudan kanıt bulunuyor. İşe alım tarafında daha güçlü ve role özgü kanıtlar görmek gerekebilir.";
@@ -163,7 +163,7 @@ function getRecruiterPerspective(
   }
 
   if (strong > 0 || partial > 0) {
-    return `The candidate has a meaningful foundation for the role: ${strong} strong and ${partial} partial matches. The decision will depend on the importance of the remaining gaps and blockers.`;
+    return `You have a meaningful foundation for the role: ${strong} strong and ${partial} partial matches. The decision will depend on the importance of your remaining gaps and blockers.`;
   }
 
   return "The CV provides limited direct evidence for this role. A recruiter may need stronger, role-specific proof of fit.";
