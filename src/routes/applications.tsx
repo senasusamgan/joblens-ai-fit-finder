@@ -43,6 +43,9 @@ import {
   rankApplicationsByNextBestAction,
 } from "@/lib/next-best-action";
 import {
+  getFollowUpGuidance,
+} from "@/lib/follow-up-intelligence";
+import {
   parsePastedRecruitmentEmail,
   findMatchingApplicationFromEmail,
   type ParsedRecruitmentEmail,
@@ -286,6 +289,7 @@ function ApplicationsPage() {
   const [reminderDueAt, setReminderDueAt] = useState("");
   const [reminderError, setReminderError] = useState<string | null>(null);
   const [reminderBusy, setReminderBusy] = useState(false);
+  const [followUpCopied, setFollowUpCopied] = useState(false);
 
   const [timelineApp, setTimelineApp] =
     useState<Application | null>(null);
@@ -385,6 +389,11 @@ function ApplicationsPage() {
   const topAction = topActionApp
     ? getNextBestAction(topActionApp)
     : null;
+
+  const reminderFollowUpGuidance =
+    reminderApp?.status === "Applied"
+      ? getFollowUpGuidance(reminderApp)
+      : null;
 
   const previewEmailImport = () => {
     setEmailImportError(null);
@@ -833,9 +842,37 @@ function ApplicationsPage() {
           ? "Case deadline"
           : "Follow up";
 
+    const followUpGuidance =
+      app.status === "Applied"
+        ? getFollowUpGuidance(app)
+        : null;
+
     setReminderTitle(suggestedTitle);
-    setReminderDueAt("");
+    setReminderDueAt(
+      followUpGuidance?.suggestedReminderDate ?? "",
+    );
     setReminderError(null);
+    setFollowUpCopied(false);
+  };
+
+  const copyFollowUpMessage = async () => {
+    if (!reminderFollowUpGuidance) return;
+
+    try {
+      await navigator.clipboard.writeText(
+        reminderFollowUpGuidance.message,
+      );
+      setFollowUpCopied(true);
+
+      window.setTimeout(() => {
+        setFollowUpCopied(false);
+      }, 1800);
+    } catch (error) {
+      console.error(
+        "[JobLens Follow-up] Copy failed:",
+        error,
+      );
+    }
   };
 
   const submitReminder = async (e: React.FormEvent) => {
@@ -1799,6 +1836,51 @@ function ApplicationsPage() {
                 <X className="h-4 w-4" aria-hidden />
               </button>
             </div>
+
+            {reminderFollowUpGuidance && (
+              <div className="mt-5 rounded-2xl border border-[color:var(--color-primary)]/20 bg-[color:var(--color-primary)]/5 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--color-primary)]">
+                      Follow-up guidance
+                    </p>
+                    <p className="mt-1 text-sm font-semibold">
+                      {reminderFollowUpGuidance.timing}
+                    </p>
+                  </div>
+
+                  <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-[color:var(--color-muted-foreground)]">
+                    {reminderFollowUpGuidance.daysSinceApplication} days since application
+                  </span>
+                </div>
+
+                <p className="mt-3 text-sm leading-relaxed text-[color:var(--color-muted-foreground)]">
+                  {reminderFollowUpGuidance.recommendation}
+                </p>
+
+                <div className="mt-4 rounded-xl border border-[color:var(--color-border)] bg-white p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-muted-foreground)]">
+                      Suggested message
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={copyFollowUpMessage}
+                      className="shrink-0 rounded-lg border border-[color:var(--color-border)] px-3 py-1.5 text-xs font-semibold hover:bg-[color:var(--color-muted)]"
+                    >
+                      {followUpCopied
+                        ? "✓ Copied"
+                        : "Copy message"}
+                    </button>
+                  </div>
+
+                  <p className="mt-3 text-sm leading-relaxed">
+                    {reminderFollowUpGuidance.message}
+                  </p>
+                </div>
+              </div>
+            )}
 
             <form className="mt-5 space-y-4" onSubmit={submitReminder}>
               <FormField id="reminder-title" label="Action">
