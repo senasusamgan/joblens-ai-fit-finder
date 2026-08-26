@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Plus,
   Trash2,
@@ -11,6 +11,8 @@ import {
   Bell,
   History,
   Mail,
+  Download,
+  Upload,
 } from "lucide-react";
 import { SiteNav } from "@/components/SiteNav";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,6 +52,12 @@ import {
   findMatchingApplicationFromEmail,
   type ParsedRecruitmentEmail,
 } from "@/lib/email-status-import";
+import {
+  applicationImportFingerprint,
+  applicationsToCsv,
+  parseApplicationsCsv,
+  type ApplicationCsvParseResult,
+} from "@/lib/applications-csv";
 
 export const Route = createFileRoute("/applications")({
   head: () => ({
@@ -267,6 +275,20 @@ function ApplicationsPage() {
   const [cloudMode, setCloudMode] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
 
+  const [csvImportOpen, setCsvImportOpen] = useState(false);
+  const [csvImportPreview, setCsvImportPreview] =
+    useState<ApplicationCsvParseResult | null>(null);
+  const [csvImportFileName, setCsvImportFileName] =
+    useState<string | null>(null);
+  const [csvImportError, setCsvImportError] =
+    useState<string | null>(null);
+  const [csvImportSuccess, setCsvImportSuccess] =
+    useState<string | null>(null);
+  const [csvImportBusy, setCsvImportBusy] =
+    useState(false);
+  const csvFileInputRef =
+    useRef<HTMLInputElement>(null);
+
   const [emailImportOpen, setEmailImportOpen] = useState(false);
   const [emailImportText, setEmailImportText] = useState("");
   const [emailImportPreview, setEmailImportPreview] =
@@ -380,6 +402,43 @@ function ApplicationsPage() {
     [timelineApp, timelineEvents],
   );
 
+  const csvImportCandidates = useMemo(() => {
+    if (!csvImportPreview) {
+      return {
+        importable: [],
+        duplicateRows: [] as number[],
+      };
+    }
+
+    const fingerprints = new Set(
+      apps.map((application) =>
+        applicationImportFingerprint(application),
+      ),
+    );
+
+    const importable =
+      [] as typeof csvImportPreview.rows;
+    const duplicateRows: number[] = [];
+
+    for (const row of csvImportPreview.rows) {
+      const fingerprint =
+        applicationImportFingerprint(row.input);
+
+      if (fingerprints.has(fingerprint)) {
+        duplicateRows.push(row.rowNumber);
+        continue;
+      }
+
+      fingerprints.add(fingerprint);
+      importable.push(row);
+    }
+
+    return {
+      importable,
+      duplicateRows,
+    };
+  }, [apps, csvImportPreview]);
+
   const stats = useMemo(() => summarise(apps), [apps]);
 
   const attentionApps = useMemo(
@@ -404,6 +463,157 @@ function ApplicationsPage() {
     timelineApp?.status === "Applied"
       ? getFollowUpGuidance(timelineApp)
       : null;
+
+  const exportApplicationsCsv = () => {
+    const csv = applicationsToCsv(apps);
+
+    const blob = new Blob([csv], {
+      type: "text/csv;charset=utf-8",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    const date = new Date()
+      .toISOString()
+      .slice(0, 10);
+
+    link.href = url;
+    link.download = `joblens-applications-${date}.csv`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(url);
+  };
+
+  const resetCsvImport = () => {
+    setCsvImportPreview(null);
+    setCsvImportFileName(null);
+    setCsvImportError(null);
+    setCsvImportSuccess(null);
+
+    if (csvFileInputRef.current) {
+      csvFileInputRef.current.value = "";
+    }
+  };
+
+  const handleCsvImportFile = async (
+    file: File | null | undefined,
+  ) => {
+    if (!file) return;
+
+    setCsvImportError(null);
+    setCsvImportSuccess(null);
+    setCsvImportPreview(null);
+    setCsvImportFileName(file.name);
+
+    if (file.size > 2_000_000) {
+      setCsvImportError(
+        "CSV files must be smaller than 2 MB.",
+      );
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const parsed = parseApplicationsCsv(text);
+
+      setCsvImportPreview(parsed);
+    } catch (error) {
+      setCsvImportError(
+        error instanceof Error
+          ? error.message
+          : "JobLens couldn’t read this CSV file.",
+      );
+    }
+  };
+
+  const confirmCsvImport = async () => {
+    if (!csvImportPreview) return;
+
+    if (csvImportCandidates.importable.length === 0) {
+      setCsvImportError(
+        "There are no new valid applications to import.",
+      );
+      return;
+    }
+
+    setCsvImportBusy(true);
+    setCsvImportError(null);
+    setCsvImportSuccess(null);
+
+    let importedCount = 0;
+    let failedCount = 0;
+    const cloudCreated: Application[] = [];
+
+    for (const row of csvImportCandidates.importable) {
+      try {
+        if (cloudMode) {
+          const created =
+            await createCloudApplication(row.input);
+
+          cloudCreated.push(created);
+          importedCount += 1;
+
+          try {
+            await recordApplicationEvent({
+              applicationId: created.id,
+              eventType: "created",
+              source: "manual",
+              toStatus: created.status,
+              occurredAt: created.createdAt,
+            });
+          } catch (eventError) {
+            console.error(
+              "[JobLens CSV Import] Timeline creation failed:",
+              eventError,
+            );
+          }
+        } else {
+          createApplication(row.input);
+          importedCount += 1;
+        }
+      } catch (error) {
+        failedCount += 1;
+
+        console.error(
+          `[JobLens CSV Import] Row ${row.rowNumber} failed:`,
+          error,
+        );
+      }
+    }
+
+    if (cloudMode && cloudCreated.length > 0) {
+      setApps((current) => [
+        ...cloudCreated,
+        ...current,
+      ]);
+    } else if (!cloudMode && importedCount > 0) {
+      setApps(loadApplications());
+    }
+
+    if (importedCount > 0) {
+      setCsvImportSuccess(
+        `${importedCount} application${
+          importedCount === 1 ? "" : "s"
+        } imported successfully.${
+          failedCount > 0
+            ? ` ${failedCount} row${
+                failedCount === 1 ? "" : "s"
+              } could not be saved.`
+            : ""
+        }`,
+      );
+    } else {
+      setCsvImportError(
+        "JobLens couldn’t import these applications. Nothing was changed.",
+      );
+    }
+
+    setCsvImportBusy(false);
+  };
 
   const previewEmailImport = () => {
     setEmailImportError(null);
@@ -961,14 +1171,36 @@ function ApplicationsPage() {
                 Track every opportunity from saved role to final decision.
               </p>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+              <button
+                type="button"
+                onClick={exportApplicationsCsv}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/5"
+              >
+                <Download className="h-4 w-4" aria-hidden />
+                Export CSV
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCsvImportOpen((current) => !current);
+                  setCsvImportError(null);
+                  setCsvImportSuccess(null);
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/5"
+              >
+                <Upload className="h-4 w-4" aria-hidden />
+                Import CSV
+              </button>
+
               <button
                 type="button"
                 onClick={() => {
                   setEmailImportOpen((current) => !current);
                   setEmailImportError(null);
                 }}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/5"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/5"
               >
                 <Mail className="h-4 w-4" aria-hidden />
                 Import Email
@@ -993,6 +1225,242 @@ function ApplicationsPage() {
             <Stat label="Interviews" value={stats.interviews} />
             <Stat label="Offers" value={stats.offers} />
           </div>
+
+          {csvImportOpen && (
+            <section className="mt-5 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 text-[color:var(--color-surface-foreground)] md:p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--color-primary)]">
+                    Applications CSV Import
+                  </p>
+
+                  <h2 className="mt-1 text-lg font-semibold">
+                    Import applications from a CSV
+                  </h2>
+
+                  <p className="mt-1 max-w-2xl text-sm text-[color:var(--color-muted-foreground)]">
+                    Preview valid rows before importing. Existing or repeated applications are skipped automatically.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCsvImportOpen(false);
+                    resetCsvImport();
+                  }}
+                  className="rounded-lg p-2 text-[color:var(--color-muted-foreground)] transition hover:bg-[color:var(--color-muted)]"
+                  aria-label="Close CSV import"
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
+
+              <div className="mt-5 rounded-xl border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-muted)]/35 p-5">
+                <input
+                  ref={csvFileInputRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="sr-only"
+                  onChange={(event) =>
+                    void handleCsvImportFile(
+                      event.target.files?.[0],
+                    )
+                  }
+                />
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    csvFileInputRef.current?.click()
+                  }
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[color:var(--color-border)] bg-white px-4 py-2.5 text-sm font-semibold transition hover:bg-[color:var(--color-muted)]"
+                >
+                  <Upload className="h-4 w-4" aria-hidden />
+                  Choose CSV File
+                </button>
+
+                <p className="mt-2 text-xs text-[color:var(--color-muted-foreground)]">
+                  Required columns: job_title and company_name. JobLens also understands aliases such as Title, Role, Position, Company, Stage and Score.
+                </p>
+
+                {csvImportFileName && (
+                  <p className="mt-3 text-sm font-medium">
+                    {csvImportFileName}
+                  </p>
+                )}
+              </div>
+
+              {csvImportError && (
+                <p
+                  role="alert"
+                  className="mt-4 rounded-xl border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/10 px-4 py-3 text-sm text-[color:var(--color-danger)]"
+                >
+                  {csvImportError}
+                </p>
+              )}
+
+              {csvImportSuccess && (
+                <p className="mt-4 rounded-xl border border-[color:var(--color-success)]/30 bg-[color:var(--color-success)]/10 px-4 py-3 text-sm font-medium text-[color:var(--color-success)]">
+                  ✓ {csvImportSuccess}
+                </p>
+              )}
+
+              {csvImportPreview && (
+                <div className="mt-5 space-y-4">
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    <div className="rounded-xl border border-[color:var(--color-border)] p-4">
+                      <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                        CSV rows
+                      </p>
+                      <p className="mt-1 text-xl font-semibold">
+                        {csvImportPreview.totalRows}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-[color:var(--color-border)] p-4">
+                      <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                        Ready to import
+                      </p>
+                      <p className="mt-1 text-xl font-semibold text-[color:var(--color-success)]">
+                        {csvImportCandidates.importable.length}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-[color:var(--color-border)] p-4">
+                      <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                        Duplicates
+                      </p>
+                      <p className="mt-1 text-xl font-semibold">
+                        {csvImportCandidates.duplicateRows.length}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-[color:var(--color-border)] p-4">
+                      <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                        Invalid rows
+                      </p>
+                      <p className="mt-1 text-xl font-semibold text-[color:var(--color-danger)]">
+                        {csvImportPreview.errors.length}
+                      </p>
+                    </div>
+                  </div>
+
+                  {csvImportCandidates.importable.length > 0 && (
+                    <div className="overflow-hidden rounded-xl border border-[color:var(--color-border)]">
+                      <div className="border-b border-[color:var(--color-border)] px-4 py-3">
+                        <p className="text-sm font-semibold">
+                          Import preview
+                        </p>
+                      </div>
+
+                      <div className="divide-y divide-[color:var(--color-border)]">
+                        {csvImportCandidates.importable
+                          .slice(0, 6)
+                          .map((row) => (
+                            <div
+                              key={row.rowNumber}
+                              className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                              <div>
+                                <p className="text-sm font-semibold">
+                                  {row.input.jobTitle}
+                                </p>
+                                <p className="text-xs text-[color:var(--color-muted-foreground)]">
+                                  {row.input.companyName}
+                                </p>
+                              </div>
+
+                              <span className="text-xs font-medium text-[color:var(--color-muted-foreground)]">
+                                {row.input.status}
+                                {typeof row.input.matchScore ===
+                                "number"
+                                  ? ` · ${row.input.matchScore}%`
+                                  : ""}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+
+                      {csvImportCandidates.importable.length >
+                        6 && (
+                        <p className="border-t border-[color:var(--color-border)] px-4 py-2 text-xs text-[color:var(--color-muted-foreground)]">
+                          +{" "}
+                          {csvImportCandidates.importable.length -
+                            6}{" "}
+                          more rows
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {(csvImportPreview.errors.length > 0 ||
+                    csvImportCandidates.duplicateRows.length >
+                      0) && (
+                    <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/30 p-4 text-sm">
+                      {csvImportCandidates.duplicateRows.length >
+                        0 && (
+                        <p>
+                          <span className="font-semibold">
+                            Duplicate rows skipped:
+                          </span>{" "}
+                          {csvImportCandidates.duplicateRows.join(
+                            ", ",
+                          )}
+                        </p>
+                      )}
+
+                      {csvImportPreview.errors
+                        .slice(0, 5)
+                        .map((error) => (
+                          <p
+                            key={`${error.rowNumber}-${error.message}`}
+                            className="mt-1 text-[color:var(--color-danger)]"
+                          >
+                            Row {error.rowNumber}:{" "}
+                            {error.message}
+                          </p>
+                        ))}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void confirmCsvImport()}
+                      disabled={
+                        csvImportBusy ||
+                        csvImportCandidates.importable
+                          .length === 0
+                      }
+                      className="inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                      style={{
+                        background: "var(--gradient-hero)",
+                      }}
+                    >
+                      {csvImportBusy
+                        ? "Importing..."
+                        : `Import ${csvImportCandidates.importable.length} Application${
+                            csvImportCandidates.importable
+                              .length === 1
+                              ? ""
+                              : "s"
+                          }`}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={resetCsvImport}
+                      disabled={csvImportBusy}
+                      className="inline-flex items-center justify-center rounded-xl border border-[color:var(--color-border)] px-4 py-2.5 text-sm font-semibold transition hover:bg-[color:var(--color-muted)] disabled:opacity-50"
+                    >
+                      Choose Another File
+                    </button>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
 
           {emailImportOpen && (
             <section className="mt-5 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 text-[color:var(--color-surface-foreground)] md:p-6">
