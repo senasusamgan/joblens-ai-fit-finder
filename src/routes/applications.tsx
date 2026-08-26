@@ -205,7 +205,7 @@ function buildApplicationLifecycle(
 
   stages.push({
     id: "decision",
-    label: decisionStatus ?? "Offer / Rejected",
+    label: decisionStatus ?? "Decision",
     status: decisionStatus,
     state: decisionStatus
       ? "current"
@@ -1261,16 +1261,7 @@ function ApplicationsPage() {
                   ) : topAction.kind === "reminder" && topAction.ctaLabel ? (
                     <button
                       type="button"
-                      onClick={() => {
-                        setReminderApp(topActionApp);
-                        setReminderTitle(
-                          topActionApp.status === "Case"
-                            ? "Case deadline"
-                            : "Follow up",
-                        );
-                        setReminderDueAt("");
-                        setReminderError(null);
-                      }}
+                      onClick={() => openReminder(topActionApp)}
                       className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[color:var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
                     >
                       {topAction.ctaLabel} →
@@ -1627,7 +1618,7 @@ function ApplicationsPage() {
                       Application journey
                     </p>
                     <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
-                      See which stages this application has reached and when.
+                      Track the stages this application has reached.
                     </p>
                   </div>
 
@@ -1638,7 +1629,7 @@ function ApplicationsPage() {
                   </span>
                 </div>
 
-                <ol className="mt-4 grid gap-2 sm:grid-cols-5">
+                <ol className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
                   {timelineLifecycle.map(
                     (stage, index) => {
                       const rejected =
@@ -1674,14 +1665,14 @@ function ApplicationsPage() {
                                 : index + 1}
                             </span>
 
-                            <p className="min-w-0 text-sm font-semibold">
+                            <p className="min-w-0 text-sm font-semibold leading-tight">
                               {stage.label}
                             </p>
                           </div>
 
                           <p className="mt-2 text-[11px] leading-relaxed text-[color:var(--color-muted-foreground)]">
                             {stage.state === "pending"
-                              ? "Not reached yet"
+                              ? "Upcoming"
                               : stage.occurredAt
                                 ? formatDate(
                                     stage.occurredAt,
@@ -1701,7 +1692,7 @@ function ApplicationsPage() {
 
             <div className="mt-6 flex items-center justify-between gap-3">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--color-muted-foreground)]">
-                Detailed history
+                Stage history
               </p>
               {!timelineBusy &&
                 !timelineError &&
@@ -1763,7 +1754,11 @@ function ApplicationsPage() {
                         </p>
 
                         <span className="rounded-full border border-[color:var(--color-border)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[color:var(--color-muted-foreground)]">
-                          {event.source}
+                          {event.source === "gmail"
+                            ? "Email import"
+                            : event.source === "analysis"
+                              ? "Analysis"
+                              : "Manual"}
                         </span>
                       </div>
 
@@ -1777,8 +1772,8 @@ function ApplicationsPage() {
                       <time className="mt-1 block text-[11px] text-[color:var(--color-muted-foreground)]">
                         {new Date(
                           event.occurredAt,
-                        ).toLocaleString(undefined, {
-                          day: "2-digit",
+                        ).toLocaleString("en-US", {
+                          day: "numeric",
                           month: "short",
                           year: "numeric",
                           hour: "2-digit",
@@ -1793,7 +1788,7 @@ function ApplicationsPage() {
 
             <div className="mt-6 border-t border-[color:var(--color-border)] pt-4">
               <p className="text-xs text-[color:var(--color-muted-foreground)]">
-                Timeline stores application stage history only.
+                Only application stage changes are shown here.
               </p>
             </div>
           </div>
