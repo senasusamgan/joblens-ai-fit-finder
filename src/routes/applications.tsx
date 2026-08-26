@@ -80,6 +80,7 @@ export const Route = createFileRoute("/applications")({
 const statusTone: Record<ApplicationStatus, string> = {
   Saved: "bg-[color:var(--color-muted)] text-[color:var(--color-muted-foreground)]",
   Applied: "bg-[color:var(--color-info)]/15 text-[color:var(--color-info)]",
+  Assessment: "bg-[color:var(--color-warning)]/15 text-[color:var(--color-warning)]",
   Interview: "bg-[color:var(--color-primary)]/15 text-[color:var(--color-primary)]",
   Case: "bg-[color:var(--color-accent)]/15 text-[color:var(--color-accent)]",
   Offer: "bg-[color:var(--color-success)]/20 text-[color:var(--color-success)]",
@@ -159,6 +160,7 @@ function buildApplicationLifecycle(
   const linearProgression: ApplicationStatus[] = [
     "Saved",
     "Applied",
+    "Assessment",
     "Interview",
     "Case",
     "Offer",
@@ -178,6 +180,7 @@ function buildApplicationLifecycle(
   const journeyStatuses: ApplicationStatus[] = [
     "Saved",
     "Applied",
+    "Assessment",
     "Interview",
     "Case",
   ];
@@ -446,10 +449,11 @@ function ApplicationsPage() {
         > = {
           Saved: 0,
           Applied: 1,
-          Interview: 2,
-          Case: 3,
-          Offer: 4,
-          Rejected: 5,
+          Assessment: 2,
+          Interview: 3,
+          Case: 4,
+          Offer: 5,
+          Rejected: 6,
         };
 
         if (
@@ -841,11 +845,13 @@ function ApplicationsPage() {
     setReminderApp(app);
 
     const suggestedTitle =
-      app.status === "Interview"
-        ? "Interview"
-        : app.status === "Case"
-          ? "Case deadline"
-          : "Follow up";
+      app.status === "Assessment"
+        ? "Assessment deadline"
+        : app.status === "Interview"
+          ? "Interview"
+          : app.status === "Case"
+            ? "Case deadline"
+            : "Follow up";
 
     const followUpGuidance =
       app.status === "Applied"
@@ -928,7 +934,7 @@ function ApplicationsPage() {
       <SiteNav />
 
       <main className="px-5 pb-24 pt-10 md:px-6">
-        <div className="mx-auto max-w-6xl">
+        <div className="mx-auto max-w-7xl">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Applications</h1>
@@ -1322,7 +1328,7 @@ function ApplicationsPage() {
               </div>
             </div>
           ) : (
-            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
               {APPLICATION_STATUSES.map((status) => {
                 const items = apps.filter((a) => a.status === status);
                 return (
@@ -1580,7 +1586,7 @@ function ApplicationsPage() {
             }
           }}
         >
-          <div className="card-surface max-h-[85vh] w-full max-w-2xl overflow-y-auto p-6">
+          <div className="card-surface max-h-[85vh] w-full max-w-3xl overflow-y-auto p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2">
@@ -1630,7 +1636,7 @@ function ApplicationsPage() {
                     </span>
                   </div>
 
-                  <ol className="mt-6 space-y-4 sm:grid sm:grid-cols-5 sm:space-y-0">
+                  <ol className="mt-6 space-y-4 md:grid md:grid-cols-6 md:space-y-0">
                     {timelineLifecycle.map((stage, index) => {
                       const complete =
                         stage.state === "complete";
@@ -1648,7 +1654,7 @@ function ApplicationsPage() {
                             timelineLifecycle.length - 1 && (
                             <span
                               aria-hidden
-                              className={`absolute left-[calc(50%+1rem)] right-[-50%] top-4 hidden h-px sm:block ${
+                              className={`absolute left-[calc(50%+1rem)] right-[-50%] top-4 hidden h-px md:block ${
                                 complete
                                   ? "bg-[color:var(--color-success)]/45"
                                   : "bg-[color:var(--color-border)]"
@@ -1656,7 +1662,7 @@ function ApplicationsPage() {
                             />
                           )}
 
-                          <div className="relative z-10 flex items-start gap-3 sm:flex-col sm:items-center sm:text-center">
+                          <div className="relative z-10 flex items-start gap-3 md:flex-col md:items-center md:text-center">
                             <span
                               className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${
                                 rejected
@@ -1930,6 +1936,9 @@ function ApplicationsPage() {
                   onChange={(e) => setReminderTitle(e.target.value)}
                 >
                   <option value="Follow up">Follow up</option>
+                  <option value="Assessment deadline">
+                    Assessment deadline
+                  </option>
                   <option value="Interview">Interview</option>
                   <option value="Case deadline">Case deadline</option>
                   <option value="Application deadline">

@@ -137,6 +137,18 @@ function actionForStatus(
       };
     }
 
+    case "Assessment":
+      return {
+        title: "Complete the assessment",
+        description:
+          "Confirm the test format and deadline before you start. Leave enough time for aptitude, language, technical, or other online assessments.",
+        ctaLabel: "Set assessment reminder",
+        kind: "reminder",
+        priority: "high",
+        urgencyLabel: "Now",
+        score: 98,
+      };
+
     case "Interview":
       return {
         title: "Prepare for the interview",
