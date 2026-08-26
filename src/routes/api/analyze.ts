@@ -141,6 +141,8 @@ PERSONAL VOICE:
 GROUNDING — ABSOLUTE RULES:
 - Use ONLY information explicitly stated in the CV. Never invent, assume, or infer facts.
 - NEVER infer any of the following unless the CV states them verbatim: current location, city, country, residency, nationality, work authorization / visa status, age, gender, language proficiency, availability, total years of experience, internship duration, current employment status, salary.
+- NEVER describe the user as an "internal candidate", "internal applicant", "existing employee", "current employee", or imply that they already work for the target company unless the CV explicitly states current employment at that exact company.
+- Past employment, internships, projects, communities, certifications, or experience in a related industry do NOT make someone an internal candidate.
 - Graduating from a university in a city does NOT prove the candidate currently lives there. Studying in a country does NOT imply work authorization.
 - If a piece of information needed to evaluate a requirement is not in the CV, treat it as unverified. Use the exact phrase ${notStated} (in the output language) where appropriate, and add the requirement to possibleBlockers with reason explaining it is unverified (not a confirmed absence).
 - Before classifying anything as a learnable gap, search the ENTIRE CV for related evidence (projects, coursework, personal projects, tools, technologies). If related evidence exists but is in a different environment / stack / scale, put it in partialMatches with cvEvidence (quote or paraphrase from CV) and remainingGap (what is still missing). NEVER describe an existing skill as absent.
