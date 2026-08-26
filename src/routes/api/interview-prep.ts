@@ -31,6 +31,34 @@ function maskCompanyName(
   );
 }
 
+function restoreCompanyPlaceholder(
+  value: unknown,
+  companyName: string,
+): unknown {
+  if (typeof value === "string") {
+    return value.split(COMPANY_PLACEHOLDER).join(companyName);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) =>
+      restoreCompanyPlaceholder(item, companyName),
+    );
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(
+        ([key, item]) => [
+          key,
+          restoreCompanyPlaceholder(item, companyName),
+        ],
+      ),
+    );
+  }
+
+  return value;
+}
+
 const InterviewPrepSchema = z.object({
   introStrategy: z.string(),
   likelyQuestions: z.array(
@@ -190,7 +218,22 @@ export const Route = createFileRoute("/api/interview-prep")({
               );
             }
 
-            return new Response(await upstream.text(), {
+            const upstreamText = await upstream.text();
+
+            let upstreamBody = upstreamText;
+
+            try {
+              upstreamBody = JSON.stringify(
+                restoreCompanyPlaceholder(
+                  JSON.parse(upstreamText),
+                  parsed.data.companyName,
+                ),
+              );
+            } catch {
+              // Preserve upstream body if it is unexpectedly non-JSON.
+            }
+
+            return new Response(upstreamBody, {
               status: upstream.status,
               headers: {
                 "content-type":
@@ -318,12 +361,18 @@ Requirements:
             );
           }
 
-          return Response.json(result.data, {
+          return Response.json(
+            restoreCompanyPlaceholder(
+              result.data,
+              companyName,
+            ),
+            {
             headers: {
               "cache-control": "no-store",
               "x-joblens-interview-prep": "ai",
             },
-          });
+          },
+          );
         } catch (error) {
           console.error("[JobLens Interview Prep] Error:", error);
 
