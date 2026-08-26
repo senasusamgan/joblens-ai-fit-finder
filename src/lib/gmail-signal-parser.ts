@@ -73,6 +73,7 @@ export function suggestCompanyFromSignal(
 
 export type GmailSignalKind =
   | "Applied"
+  | "Assessment"
   | "Interview"
   | "Case"
   | "Offer"
@@ -180,11 +181,32 @@ export function classifyGmailSignal(
     "case study",
     "case assignment",
     "take-home assignment",
-    "assessment",
-    "online assessment",
     "technical task",
     "case çalışması",
     "vaka çalışması",
+  ];
+
+  const assessmentTerms = [
+    "online assessment",
+    "assessment invitation",
+    "assessment test",
+    "aptitude test",
+    "ability test",
+    "cognitive test",
+    "reasoning test",
+    "numerical reasoning",
+    "verbal reasoning",
+    "language test",
+    "english test",
+    "english assessment",
+    "technical assessment",
+    "online test",
+    "yetenek testi",
+    "genel yetenek",
+    "dil testi",
+    "ingilizce testi",
+    "ingilizce sınavı",
+    "yabancı dil sınavı",
     "değerlendirme sınavı",
     "değerlendirme testi",
   ];
@@ -217,6 +239,9 @@ export function classifyGmailSignal(
   } else if (includesAny(subjectText, caseTerms)) {
     kind = "Case";
     confidence = "high";
+  } else if (includesAny(subjectText, assessmentTerms)) {
+    kind = "Assessment";
+    confidence = "high";
   } else if (includesAny(subjectText, interviewTerms)) {
     kind = "Interview";
     confidence = "high";
@@ -239,6 +264,9 @@ export function classifyGmailSignal(
       confidence = "high";
     } else if (includesAny(text, caseTerms)) {
       kind = "Case";
+      confidence = "high";
+    } else if (includesAny(text, assessmentTerms)) {
+      kind = "Assessment";
       confidence = "high";
     } else if (includesAny(text, interviewTerms)) {
       kind = "Interview";

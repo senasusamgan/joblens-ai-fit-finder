@@ -78,6 +78,7 @@ export const Route = createFileRoute("/dashboard")({
 const ACTIVE_STATUSES: ApplicationStatus[] = [
   "Saved",
   "Applied",
+  "Assessment",
   "Interview",
   "Case",
 ];
@@ -85,6 +86,7 @@ const ACTIVE_STATUSES: ApplicationStatus[] = [
 const statusAccent: Record<ApplicationStatus, string> = {
   Saved: "bg-[color:var(--color-muted-foreground)]",
   Applied: "bg-[color:var(--color-info)]",
+  Assessment: "bg-[color:var(--color-warning)]",
   Interview: "bg-[color:var(--color-primary)]",
   Case: "bg-[color:var(--color-accent)]",
   Offer: "bg-[color:var(--color-success)]",

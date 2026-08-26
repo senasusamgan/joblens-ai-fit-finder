@@ -8,6 +8,7 @@ import type {
 
 const SUBMITTED_STATUSES: ApplicationStatus[] = [
   "Applied",
+  "Assessment",
   "Interview",
   "Case",
   "Offer",

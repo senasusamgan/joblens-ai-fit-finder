@@ -8,6 +8,7 @@ export const APPLICATIONS_KEY = "joblens_applications_v1";
 export const APPLICATION_STATUSES = [
   "Saved",
   "Applied",
+  "Assessment",
   "Interview",
   "Case",
   "Offer",
@@ -125,7 +126,13 @@ export function deleteApplication(id: string): Application[] {
   return list;
 }
 
-export const ACTIVE_STATUSES: ApplicationStatus[] = ["Saved", "Applied", "Interview", "Case"];
+export const ACTIVE_STATUSES: ApplicationStatus[] = [
+  "Saved",
+  "Applied",
+  "Assessment",
+  "Interview",
+  "Case",
+];
 
 export function summarise(list: Application[]) {
   return {
