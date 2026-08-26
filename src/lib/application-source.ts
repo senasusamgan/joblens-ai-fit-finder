@@ -1,12 +1,12 @@
 export const APPLICATION_SOURCES = [
   "LinkedIn",
+  "Referral",
   "Company Website",
+  "Networking / Event",
   "Youthall",
   "Kariyer.net",
   "Indeed",
   "Glassdoor",
-  "Referral",
-  "Networking / Event",
   "Other Job Board",
   "Other",
 ] as const;
