@@ -16,6 +16,12 @@ import {
   buildTargetRoleFit,
 } from "@/lib/target-role-fit";
 import { isLinkedInJobUrl } from "@/lib/job-url-import";
+import {
+  buildAnalysisExportFilename,
+  buildAnalysisExportText,
+  buildAnalysisShareSummary,
+  type AnalysisExportInput,
+} from "@/lib/analysis-export";
 
 
 export const Route = createFileRoute("/")({
@@ -174,6 +180,8 @@ function Index() {
   const [copied, setCopied] = useState(false);
   const [copiedCvSuggestion, setCopiedCvSuggestion] = useState<number | null>(null);
   const [savedApplicationId, setSavedApplicationId] = useState<string | null>(null);
+  const [analysisExportStatus, setAnalysisExportStatus] =
+    useState<"shared" | "copied" | "downloaded" | null>(null);
   const [searchGoals, setSearchGoals] =
     useState<SearchGoals>({
       ...DEFAULT_SEARCH_GOALS,
@@ -474,6 +482,7 @@ function Index() {
     setAnalysis(null);
     setSubmitError(null);
     setSavedApplicationId(null);
+    setAnalysisExportStatus(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -485,6 +494,97 @@ function Index() {
     } catch {
       /* ignore */
     }
+  };
+
+  const getAnalysisExportInput = (): AnalysisExportInput | null => {
+    if (!analysis) return null;
+
+    return {
+      jobTitle: jobTitle.trim(),
+      companyName: companyName.trim(),
+      jobUrl: jobUrl.trim() || undefined,
+      language: analysisLang,
+      analysis,
+      decisionBrief,
+      careerDirection: {
+        label: targetRoleFitLabel,
+        score: targetRoleFit.score,
+      },
+    };
+  };
+
+  const showAnalysisExportStatus = (
+    status: "shared" | "copied" | "downloaded",
+  ) => {
+    setAnalysisExportStatus(status);
+    window.setTimeout(() => setAnalysisExportStatus(null), 2200);
+  };
+
+  const copyAnalysisSummary = async () => {
+    const input = getAnalysisExportInput();
+    if (!input) return;
+
+    try {
+      await navigator.clipboard.writeText(
+        buildAnalysisShareSummary(input),
+      );
+      showAnalysisExportStatus("copied");
+    } catch {
+      console.error("[JobLens] Could not copy analysis summary.");
+    }
+  };
+
+  const shareAnalysisSummary = async () => {
+    const input = getAnalysisExportInput();
+    if (!input) return;
+
+    const text = buildAnalysisShareSummary(input);
+
+    if (typeof navigator.share !== "function") {
+      await copyAnalysisSummary();
+      return;
+    }
+
+    try {
+      await navigator.share({
+        title: `${input.jobTitle} — JobLens AI`,
+        text,
+      });
+
+      showAnalysisExportStatus("shared");
+    } catch (error) {
+      if (
+        error instanceof DOMException &&
+        error.name === "AbortError"
+      ) {
+        return;
+      }
+
+      console.error("[JobLens] Could not share analysis.", error);
+    }
+  };
+
+  const downloadAnalysisReport = () => {
+    const input = getAnalysisExportInput();
+    if (!input) return;
+
+    const blob = new Blob(
+      [buildAnalysisExportText(input)],
+      { type: "text/plain;charset=utf-8" },
+    );
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = buildAnalysisExportFilename(input);
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(url);
+    showAnalysisExportStatus("downloaded");
   };
 
   const copyMessage = async () => {
@@ -917,6 +1017,81 @@ function Index() {
                     {analysisLang === "Turkish" ? "Başvuruları Gör →" : "View Applications →"}
                   </Link>
                 )}
+              </div>
+            </div>
+
+            <div className="card-surface p-5 md:p-6">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--color-primary)]">
+                    {analysisLang === "Turkish"
+                      ? "Paylaş & Dışa Aktar"
+                      : "Share & Export"}
+                  </p>
+
+                  <h2 className="mt-1 text-lg font-semibold">
+                    {analysisLang === "Turkish"
+                      ? "Analizini yanında götür"
+                      : "Take your analysis with you"}
+                  </h2>
+
+                  <p className="mt-1 max-w-xl text-sm leading-relaxed text-[color:var(--color-muted-foreground)]">
+                    {analysisLang === "Turkish"
+                      ? "Kısa özeti paylaşabilir veya ayrıntılı analiz raporunu cihazına indirebilirsin."
+                      : "Share a concise summary or download your detailed analysis report."}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2 md:justify-end">
+                  <button
+                    type="button"
+                    onClick={shareAnalysisSummary}
+                    className="inline-flex items-center justify-center rounded-xl border border-[color:var(--color-primary)]/25 bg-[color:var(--color-primary)]/10 px-4 py-2.5 text-sm font-semibold text-[color:var(--color-primary)] transition hover:bg-[color:var(--color-primary)]/15"
+                  >
+                    {analysisLang === "Turkish"
+                      ? "Özeti Paylaş"
+                      : "Share Summary"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={copyAnalysisSummary}
+                    className="inline-flex items-center justify-center rounded-xl border border-[color:var(--color-border)] px-4 py-2.5 text-sm font-semibold transition hover:bg-[color:var(--color-muted)]"
+                  >
+                    {analysisLang === "Turkish"
+                      ? "Özeti Kopyala"
+                      : "Copy Summary"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={downloadAnalysisReport}
+                    className="inline-flex items-center justify-center rounded-xl border border-[color:var(--color-border)] px-4 py-2.5 text-sm font-semibold transition hover:bg-[color:var(--color-muted)]"
+                  >
+                    {analysisLang === "Turkish"
+                      ? "Raporu İndir"
+                      : "Download Report"}
+                  </button>
+                </div>
+              </div>
+
+              <div
+                aria-live="polite"
+                className="mt-3 min-h-4 text-xs font-medium text-[color:var(--color-success)]"
+              >
+                {analysisExportStatus === "shared"
+                  ? analysisLang === "Turkish"
+                    ? "✓ Paylaşım ekranı açıldı."
+                    : "✓ Share sheet opened."
+                  : analysisExportStatus === "copied"
+                    ? analysisLang === "Turkish"
+                      ? "✓ Özet panoya kopyalandı."
+                      : "✓ Summary copied."
+                    : analysisExportStatus === "downloaded"
+                      ? analysisLang === "Turkish"
+                        ? "✓ Rapor indirildi."
+                        : "✓ Report downloaded."
+                      : ""}
               </div>
             </div>
 
