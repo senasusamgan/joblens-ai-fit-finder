@@ -45,7 +45,17 @@ const cases = [
       snippet:
         "Online Video Mülakat için değerlendirme süreciniz başlatılmıştır.",
     },
-    expected: "Case",
+    expected: "Assessment",
+  },
+  {
+    name: "Language assessment",
+    input: {
+      subject: "English Assessment Invitation",
+      from: '"Careers" <careers@example.com>',
+      snippet:
+        "Please complete your online English language test before the deadline.",
+    },
+    expected: "Assessment",
   },
   {
     name: "LinkedIn job alert is not a signal",
