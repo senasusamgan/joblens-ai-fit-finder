@@ -395,6 +395,11 @@ function ApplicationsPage() {
       ? getFollowUpGuidance(reminderApp)
       : null;
 
+  const timelineFollowUpGuidance =
+    timelineApp?.status === "Applied"
+      ? getFollowUpGuidance(timelineApp)
+      : null;
+
   const previewEmailImport = () => {
     setEmailImportError(null);
     setEmailImportSuccess(null);
@@ -1575,7 +1580,7 @@ function ApplicationsPage() {
             }
           }}
         >
-          <div className="card-surface max-h-[85vh] w-full max-w-lg overflow-y-auto p-6">
+          <div className="card-surface max-h-[85vh] w-full max-w-2xl overflow-y-auto p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2">
@@ -1587,7 +1592,7 @@ function ApplicationsPage() {
                     id="timeline-dialog-title"
                     className="text-xl font-semibold"
                   >
-                    Application timeline
+                    Application progress
                   </h2>
                 </div>
 
@@ -1611,88 +1616,132 @@ function ApplicationsPage() {
             </div>
 
             {!timelineBusy && !timelineError && (
-              <div className="mt-6 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/30 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--color-primary)]">
-                      Application journey
+              <>
+                <section className="mt-6 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/25 p-5">
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-sm font-semibold">
+                      Hiring stages
                     </p>
-                    <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
-                      Track the stages this application has reached.
-                    </p>
+
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusTone[timelineApp.status]}`}
+                    >
+                      {timelineApp.status}
+                    </span>
                   </div>
 
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusTone[timelineApp.status]}`}
-                  >
-                    Current · {timelineApp.status}
-                  </span>
-                </div>
-
-                <ol className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-                  {timelineLifecycle.map(
-                    (stage, index) => {
+                  <ol className="mt-6 space-y-4 sm:grid sm:grid-cols-5 sm:space-y-0">
+                    {timelineLifecycle.map((stage, index) => {
+                      const complete =
+                        stage.state === "complete";
+                      const current =
+                        stage.state === "current";
                       const rejected =
                         stage.status === "Rejected";
 
                       return (
                         <li
                           key={stage.id}
-                          className={`rounded-xl border p-3 ${
-                            stage.state === "pending"
-                              ? "border-[color:var(--color-border)] bg-white/50"
-                              : rejected
-                                ? "border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/10"
-                                : stage.state === "current"
-                                  ? "border-[color:var(--color-primary)]/30 bg-[color:var(--color-primary)]/10"
-                                  : "border-[color:var(--color-success)]/30 bg-[color:var(--color-success)]/10"
-                          }`}
+                          className="relative"
                         >
-                          <div className="flex items-center gap-2">
+                          {index <
+                            timelineLifecycle.length - 1 && (
                             <span
-                              className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-                                stage.state === "pending"
-                                  ? "bg-[color:var(--color-muted)] text-[color:var(--color-muted-foreground)]"
-                                  : rejected
-                                    ? "bg-[color:var(--color-danger)]/15 text-[color:var(--color-danger)]"
-                                    : stage.state === "current"
-                                      ? "bg-[color:var(--color-primary)]/15 text-[color:var(--color-primary)]"
-                                      : "bg-[color:var(--color-success)]/15 text-[color:var(--color-success)]"
+                              aria-hidden
+                              className={`absolute left-[calc(50%+1rem)] right-[-50%] top-4 hidden h-px sm:block ${
+                                complete
+                                  ? "bg-[color:var(--color-success)]/45"
+                                  : "bg-[color:var(--color-border)]"
+                              }`}
+                            />
+                          )}
+
+                          <div className="relative z-10 flex items-start gap-3 sm:flex-col sm:items-center sm:text-center">
+                            <span
+                              className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${
+                                rejected
+                                  ? "border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)]"
+                                  : current
+                                    ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)] text-white"
+                                    : complete
+                                      ? "border-[color:var(--color-success)]/40 bg-[color:var(--color-success)]/15 text-[color:var(--color-success)]"
+                                      : "border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-muted-foreground)]"
                               }`}
                             >
-                              {stage.state === "complete"
-                                ? "✓"
-                                : index + 1}
+                              {complete ? "✓" : index + 1}
                             </span>
 
-                            <p className="min-w-0 text-sm font-semibold leading-tight">
-                              {stage.label}
-                            </p>
-                          </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold">
+                                {stage.label}
+                              </p>
 
-                          <p className="mt-2 text-[11px] leading-relaxed text-[color:var(--color-muted-foreground)]">
-                            {stage.state === "pending"
-                              ? "Upcoming"
-                              : stage.occurredAt
-                                ? formatDate(
-                                    stage.occurredAt,
-                                  )
-                                : stage.state ===
-                                    "current"
-                                  ? "Current stage · date not recorded"
-                                  : "Reached · date not recorded"}
-                          </p>
+                              <p className="mt-1 text-xs text-[color:var(--color-muted-foreground)]">
+                                {stage.occurredAt
+                                  ? formatDate(stage.occurredAt)
+                                  : current
+                                    ? "Current"
+                                    : "Upcoming"}
+                              </p>
+                            </div>
+                          </div>
                         </li>
                       );
-                    },
-                  )}
-                </ol>
-              </div>
+                    })}
+                  </ol>
+                </section>
+
+                {timelineFollowUpGuidance && (
+                  <section className="mt-4 rounded-2xl border border-[color:var(--color-primary)]/25 bg-[color:var(--color-primary)]/5 p-4">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--color-primary)]">
+                          Recommended next step
+                        </p>
+
+                        <p className="mt-1 text-base font-semibold">
+                          {timelineFollowUpGuidance.timing === "Wait"
+                            ? "No follow-up yet"
+                            : timelineFollowUpGuidance.timing === "Plan"
+                              ? "Plan your follow-up"
+                              : "Follow up now"}
+                        </p>
+
+                        <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
+                          {timelineFollowUpGuidance.daysSinceApplication} days since application
+                          {" · "}
+                          {new Date(
+                            timelineFollowUpGuidance.suggestedReminderDate,
+                          ).toLocaleString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const app = timelineApp;
+                          setTimelineApp(null);
+                          openReminder(app);
+                        }}
+                        className="shrink-0 rounded-xl bg-[color:var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+                      >
+                        Set reminder
+                      </button>
+                    </div>
+                  </section>
+                )}
+              </>
             )}
 
             <div className="mt-6 flex items-center justify-between gap-3">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--color-muted-foreground)]">
-                Stage history
+                Activity
               </p>
               {!timelineBusy &&
                 !timelineError &&
@@ -1786,11 +1835,6 @@ function ApplicationsPage() {
               )}
             </div>
 
-            <div className="mt-6 border-t border-[color:var(--color-border)] pt-4">
-              <p className="text-xs text-[color:var(--color-muted-foreground)]">
-                Only application stage changes are shown here.
-              </p>
-            </div>
           </div>
         </div>
       )}
