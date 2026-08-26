@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "verify:gmail": "node --experimental-strip-types scripts/verify-gmail-company-parser.mjs && node --experimental-strip-types scripts/verify-gmail-signal-parser.mjs && bun scripts/verify-email-status-import.ts"
+    "verify:gmail": "node --experimental-strip-types scripts/verify-gmail-company-parser.mjs && node --experimental-strip-types scripts/verify-gmail-signal-parser.mjs && bun scripts/verify-email-status-import.ts",
+    "verify:applications": "node --experimental-strip-types scripts/verify-application-source.ts && node --experimental-strip-types scripts/verify-application-source-insights.ts && node --experimental-strip-types scripts/verify-applications-csv.ts"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^3.0.0",

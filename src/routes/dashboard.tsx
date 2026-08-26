@@ -262,6 +262,14 @@ function DashboardPage() {
     [performanceInsights.companySegments],
   );
 
+  const strongestSourceSegment = useMemo(
+    () =>
+      performanceInsights.sourceSegments.find(
+        (segment) => segment.interviewReached > 0,
+      ) ?? null,
+    [performanceInsights.sourceSegments],
+  );
+
   const recentApplications = useMemo(
     () =>
       [...apps]
@@ -635,7 +643,7 @@ function DashboardPage() {
                   </div>
                 )}
 
-                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   <PerformancePatternCard
                     eyebrow="Match score"
                     title="Best observed score band"
@@ -655,6 +663,13 @@ function DashboardPage() {
                     title="Strongest company pattern"
                     segment={strongestCompanySegment}
                     emptyText="Repeated applications to the same company are needed for this signal."
+                  />
+
+                  <PerformancePatternCard
+                    eyebrow="Source"
+                    title="Strongest source pattern"
+                    segment={strongestSourceSegment}
+                    emptyText="Track at least 2 submitted applications from the same source to unlock this pattern."
                   />
                 </div>
 

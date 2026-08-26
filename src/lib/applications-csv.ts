@@ -3,6 +3,10 @@ import type {
   ApplicationInput,
   ApplicationStatus,
 } from "@/lib/applications";
+import {
+  detectApplicationSourceFromUrl,
+  normaliseApplicationSource,
+} from "./application-source.ts";
 
 const CSV_APPLICATION_STATUSES: readonly ApplicationStatus[] = [
   "Saved",
@@ -18,6 +22,7 @@ export const APPLICATION_CSV_COLUMNS = [
   "job_title",
   "company_name",
   "job_url",
+  "application_source",
   "status",
   "match_score",
   "verdict",
@@ -49,6 +54,12 @@ const HEADER_ALIASES: Record<
   job_title: ["job_title", "title", "role", "position"],
   company_name: ["company_name", "company"],
   job_url: ["job_url", "url", "job_link", "link"],
+  application_source: [
+    "application_source",
+    "source",
+    "platform",
+    "channel",
+  ],
   status: ["status", "stage"],
   match_score: ["match_score", "score", "match"],
   verdict: ["verdict", "fit_verdict"],
@@ -213,6 +224,7 @@ export function applicationsToCsv(
     application.jobTitle,
     application.companyName,
     application.jobUrl ?? "",
+    application.applicationSource ?? "",
     application.status,
     application.matchScore ?? "",
     application.verdict ?? "",
@@ -288,6 +300,30 @@ export function parseApplicationsCsv(
       return;
     }
 
+    const jobUrl =
+      readCell(record, headers, "job_url") ||
+      undefined;
+
+    const sourceValue = readCell(
+      record,
+      headers,
+      "application_source",
+    );
+
+    const applicationSource =
+      sourceValue
+        ? normaliseApplicationSource(sourceValue)
+        : detectApplicationSourceFromUrl(jobUrl);
+
+    if (sourceValue && !applicationSource) {
+      errors.push({
+        rowNumber,
+        message: `Unknown application source "${sourceValue}".`,
+      });
+
+      return;
+    }
+
     const statusValue = readCell(
       record,
       headers,
@@ -356,9 +392,8 @@ export function parseApplicationsCsv(
       input: {
         jobTitle,
         companyName,
-        jobUrl:
-          readCell(record, headers, "job_url") ||
-          undefined,
+        jobUrl,
+        applicationSource,
         status,
         matchScore,
         verdict:

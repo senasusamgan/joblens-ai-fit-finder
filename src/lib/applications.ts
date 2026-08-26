@@ -1,3 +1,8 @@
+import {
+  normaliseApplicationSource,
+  type ApplicationSource,
+} from "./application-source.ts";
+
 /**
  * JobLens application tracker — local-only persistence (MVP).
  * Never store CV text in this model.
@@ -22,6 +27,7 @@ export interface Application {
   jobTitle: string;
   companyName: string;
   jobUrl?: string;
+  applicationSource?: ApplicationSource;
   status: ApplicationStatus;
   matchScore?: number;
   verdict?: string;
@@ -62,6 +68,11 @@ function sanitise(raw: unknown): Application | null {
     jobTitle,
     companyName,
     jobUrl: typeof r.jobUrl === "string" ? r.jobUrl : undefined,
+    applicationSource: normaliseApplicationSource(
+      typeof r.applicationSource === "string"
+        ? r.applicationSource
+        : undefined,
+    ),
     status: isStatus(r.status) ? r.status : "Saved",
     matchScore: typeof r.matchScore === "number" && Number.isFinite(r.matchScore) ? r.matchScore : undefined,
     verdict: typeof r.verdict === "string" ? r.verdict : undefined,

@@ -58,6 +58,11 @@ import {
   parseApplicationsCsv,
   type ApplicationCsvParseResult,
 } from "@/lib/applications-csv";
+import {
+  APPLICATION_SOURCES,
+  detectApplicationSourceFromUrl,
+  type ApplicationSource,
+} from "@/lib/application-source";
 
 export const Route = createFileRoute("/applications")({
   head: () => ({
@@ -251,6 +256,7 @@ type FormState = {
   jobTitle: string;
   companyName: string;
   jobUrl: string;
+  applicationSource: ApplicationSource | "";
   status: ApplicationStatus;
   appliedAt: string;
   notes: string;
@@ -260,6 +266,7 @@ const emptyForm: FormState = {
   jobTitle: "",
   companyName: "",
   jobUrl: "",
+  applicationSource: "",
   status: "Saved",
   appliedAt: "",
   notes: "",
@@ -875,6 +882,7 @@ function ApplicationsPage() {
       jobTitle: a.jobTitle,
       companyName: a.companyName,
       jobUrl: a.jobUrl ?? "",
+      applicationSource: a.applicationSource ?? "",
       status: a.status,
       appliedAt: a.appliedAt ? a.appliedAt.slice(0, 10) : "",
       notes: a.notes ?? "",
@@ -897,6 +905,9 @@ function ApplicationsPage() {
       jobTitle: form.jobTitle.trim(),
       companyName: form.companyName.trim(),
       jobUrl: form.jobUrl.trim() || undefined,
+      applicationSource:
+        form.applicationSource ||
+        detectApplicationSourceFromUrl(form.jobUrl),
       status: form.status,
       appliedAt: form.appliedAt || undefined,
       notes: form.notes.trim() || undefined,
@@ -2643,9 +2654,55 @@ function ApplicationsPage() {
                   id="f-url"
                   className="jl-input"
                   value={form.jobUrl}
-                  onChange={(e) => setForm({ ...form, jobUrl: e.target.value })}
+                  onChange={(e) => {
+                    const nextJobUrl = e.target.value;
+                    const previousDetected =
+                      detectApplicationSourceFromUrl(form.jobUrl);
+                    const nextDetected =
+                      detectApplicationSourceFromUrl(nextJobUrl);
+
+                    setForm({
+                      ...form,
+                      jobUrl: nextJobUrl,
+                      applicationSource:
+                        !form.applicationSource ||
+                        form.applicationSource === previousDetected
+                          ? nextDetected ?? ""
+                          : form.applicationSource,
+                    });
+                  }}
                   placeholder="https://…"
                 />
+              </FormField>
+
+              <FormField
+                id="f-source"
+                label="Application source"
+                hint="Optional"
+              >
+                <select
+                  id="f-source"
+                  className="jl-input"
+                  value={form.applicationSource}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      applicationSource:
+                        e.target.value as ApplicationSource | "",
+                    })
+                  }
+                >
+                  <option value="">Not set</option>
+                  {APPLICATION_SOURCES.map((source) => (
+                    <option key={source} value={source}>
+                      {source}
+                    </option>
+                  ))}
+                </select>
+
+                <p className="mt-1.5 text-[11px] text-[color:var(--color-muted-foreground)]">
+                  JobLens can detect some sources from the job URL. You can always override it.
+                </p>
               </FormField>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -2789,12 +2846,22 @@ function AppCard({
         )}
       </div>
 
-      {app.verdict && (
-        <span
-          className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${statusTone[app.status]}`}
-        >
-          {app.verdict}
-        </span>
+      {(app.verdict || app.applicationSource) && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {app.verdict && (
+            <span
+              className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${statusTone[app.status]}`}
+            >
+              {app.verdict}
+            </span>
+          )}
+
+          {app.applicationSource && (
+            <span className="inline-flex rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-muted)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--color-muted-foreground)]">
+              {app.applicationSource}
+            </span>
+          )}
+        </div>
       )}
 
       {app.notes && (

@@ -13,6 +13,9 @@ import {
   type ApplicationInput,
   type ApplicationStatus,
 } from "@/lib/applications";
+import {
+  normaliseApplicationSource,
+} from "@/lib/application-source";
 
 type ApplicationRow = Tables<"applications">;
 type ApplicationInsert = TablesInsert<"applications">;
@@ -30,6 +33,10 @@ function rowToApplication(row: ApplicationRow): Application {
     jobTitle: row.job_title,
     companyName: row.company_name,
     jobUrl: row.job_url ?? undefined,
+    applicationSource:
+      normaliseApplicationSource(
+        row.application_source,
+      ),
     status: normaliseStatus(row.status),
     matchScore: row.match_score ?? undefined,
     verdict: row.verdict ?? undefined,
@@ -51,6 +58,8 @@ function inputToInsert(
     job_title: input.jobTitle,
     company_name: input.companyName,
     job_url: input.jobUrl ?? null,
+    application_source:
+      input.applicationSource ?? null,
     status: input.status ?? "Saved",
     match_score: input.matchScore ?? null,
     verdict: input.verdict ?? null,
@@ -69,6 +78,9 @@ function patchToUpdate(
   if (patch.jobTitle !== undefined) result.job_title = patch.jobTitle;
   if (patch.companyName !== undefined) result.company_name = patch.companyName;
   if (patch.jobUrl !== undefined) result.job_url = patch.jobUrl ?? null;
+  if (patch.applicationSource !== undefined)
+    result.application_source =
+      patch.applicationSource ?? null;
   if (patch.status !== undefined) result.status = patch.status;
   if (patch.matchScore !== undefined) result.match_score = patch.matchScore ?? null;
   if (patch.verdict !== undefined) result.verdict = patch.verdict ?? null;
@@ -115,6 +127,8 @@ export async function migrateGuestApplicationsToCloud(): Promise<Application[]> 
           jobTitle: app.jobTitle,
           companyName: app.companyName,
           jobUrl: app.jobUrl,
+          applicationSource:
+            app.applicationSource,
           status: app.status,
           matchScore: app.matchScore,
           verdict: app.verdict,

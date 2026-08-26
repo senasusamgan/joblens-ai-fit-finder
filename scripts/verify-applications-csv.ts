@@ -11,7 +11,8 @@ const csv = applicationsToCsv([
     id: "1",
     jobTitle: "Product Intern",
     companyName: "Example, Inc.",
-    jobUrl: "https://example.com/jobs/1",
+    jobUrl: "https://www.linkedin.com/jobs/view/1",
+    applicationSource: "LinkedIn",
     status: "Applied",
     matchScore: 82,
     verdict: "Worth Applying",
@@ -45,10 +46,15 @@ assert.equal(
   "Applied",
 );
 
+assert.equal(
+  parsed.rows[0].input.applicationSource,
+  "LinkedIn",
+);
+
 const aliases = parseApplicationsCsv(
   [
-    "Title,Company,Stage,Score",
-    "Marketing Intern,Lalamove,Assessment,74",
+    "Title,Company,Source,Stage,Score",
+    "Marketing Intern,Lalamove,Youthall,Assessment,74",
   ].join("\n"),
 );
 
@@ -66,6 +72,23 @@ assert.equal(
   74,
 );
 
+assert.equal(
+  aliases.rows[0].input.applicationSource,
+  "Youthall",
+);
+
+const inferredSource = parseApplicationsCsv(
+  [
+    "job_title,company_name,job_url,status",
+    "Product Intern,Example,https://www.linkedin.com/jobs/view/99,Saved",
+  ].join("\n"),
+);
+
+assert.equal(
+  inferredSource.rows[0].input.applicationSource,
+  "LinkedIn",
+);
+
 const invalid = parseApplicationsCsv(
   [
     "job_title,company_name,status,match_score",
@@ -78,6 +101,20 @@ const invalid = parseApplicationsCsv(
 
 assert.equal(invalid.rows.length, 0);
 assert.equal(invalid.errors.length, 4);
+
+const invalidSource = parseApplicationsCsv(
+  [
+    "job_title,company_name,application_source",
+    "Role E,Company E,MySpace",
+  ].join("\n"),
+);
+
+assert.equal(invalidSource.rows.length, 0);
+assert.equal(invalidSource.errors.length, 1);
+assert.match(
+  invalidSource.errors[0].message,
+  /Unknown application source/,
+);
 
 assert.equal(
   applicationImportFingerprint({
