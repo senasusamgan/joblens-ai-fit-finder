@@ -18,6 +18,7 @@ const AnalysisSchema = z.object({
   strongMatches: z.array(
     z.object({
       requirement: z.string(),
+      jobEvidence: z.string(),
       cvEvidence: z.string(),
       explanation: z.string(),
     }),
@@ -25,6 +26,7 @@ const AnalysisSchema = z.object({
   partialMatches: z.array(
     z.object({
       requirement: z.string(),
+      jobEvidence: z.string(),
       cvEvidence: z.string(),
       remainingGap: z.string(),
       explanation: z.string(),
@@ -33,6 +35,8 @@ const AnalysisSchema = z.object({
   learnableGaps: z.array(
     z.object({
       skill: z.string(),
+      jobEvidence: z.string(),
+      cvEvidence: z.string(),
       importance: z.string(),
       suggestion: z.string(),
     }),
@@ -40,6 +44,8 @@ const AnalysisSchema = z.object({
   possibleBlockers: z.array(
     z.object({
       requirement: z.string(),
+      jobEvidence: z.string(),
+      cvEvidence: z.string(),
       reason: z.string(),
       severity: z.enum(["Low", "Medium", "High"]),
     }),
@@ -149,6 +155,14 @@ GROUNDING — ABSOLUTE RULES:
 - Do NOT infer soft activities like "debugging", "code review", "testing", "team leadership", "mentoring", "agile", "scrum" just because the candidate built something complex. They must be explicitly mentioned in the CV. If debugging is requested by the JD but not in the CV, do not claim it as evidence. You may add a partial match noting related development experience and explicitly state that the activity itself is not directly mentioned in the CV.
 - Nice-to-have / preferred requirements must influence matchScore LESS than mandatory / required ones.
 
+EVIDENCE LAYER:
+- Every strong match, partial match, learnable gap, and possible blocker must include jobEvidence and cvEvidence.
+- jobEvidence must be a concise quote or faithful paraphrase of the relevant requirement explicitly present in the JOB DESCRIPTION.
+- cvEvidence must be a concise quote or faithful paraphrase of relevant information explicitly present in the CV.
+- If no relevant CV evidence exists, cvEvidence MUST be exactly ${notStated}.
+- Never invent, strengthen, or infer evidence on either side.
+- Evidence should be short and specific enough that the user can understand why the classification was made.
+
 CATEGORIES:
 - strongMatches: requirement is clearly supported by explicit CV evidence.
 - partialMatches: related CV evidence exists but does not fully meet the requirement (different stack, smaller scale, academic vs professional, related but not the same activity, etc.).
@@ -197,10 +211,10 @@ Analyze the fit honestly. Respond with ONLY a single valid JSON object matching 
   "verdict": "Strong Fit" | "Worth Applying" | "Stretch Opportunity" | "Low Fit",
   "verdictExplanation": string,
   "matchScore": number,
-  "strongMatches": { "requirement": string, "cvEvidence": string, "explanation": string }[],
-  "partialMatches": { "requirement": string, "cvEvidence": string, "remainingGap": string, "explanation": string }[],
-  "learnableGaps": { "skill": string, "importance": string, "suggestion": string }[],
-  "possibleBlockers": { "requirement": string, "reason": string, "severity": "Low" | "Medium" | "High" }[],
+  "strongMatches": { "requirement": string, "jobEvidence": string, "cvEvidence": string, "explanation": string }[],
+  "partialMatches": { "requirement": string, "jobEvidence": string, "cvEvidence": string, "remainingGap": string, "explanation": string }[],
+  "learnableGaps": { "skill": string, "jobEvidence": string, "cvEvidence": string, "importance": string, "suggestion": string }[],
+  "possibleBlockers": { "requirement": string, "jobEvidence": string, "cvEvidence": string, "reason": string, "severity": "Low" | "Medium" | "High" }[],
   "cvSuggestions": { "section": string, "suggestion": string, "reason": string, "example": string }[],
   "recruiterMessage": string,
   "disclaimer": string
