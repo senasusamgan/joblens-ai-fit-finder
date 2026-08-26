@@ -156,6 +156,12 @@ const T = {
 function Index() {
   const [jobTitle, setJobTitle] = useState("");
   const [companyName, setCompanyName] = useState("");
+  const [jobUrl, setJobUrl] = useState("");
+  const [jobImportBusy, setJobImportBusy] = useState(false);
+  const [jobImportError, setJobImportError] =
+    useState<string | null>(null);
+  const [jobImportSuccess, setJobImportSuccess] =
+    useState<string | null>(null);
   const [cv, setCv] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [language, setLanguage] = useState<Lang>("English");
@@ -299,6 +305,81 @@ function Index() {
     return Object.keys(e).length === 0;
   };
 
+  const importJobFromUrl = async () => {
+    if (!jobUrl.trim()) {
+      setJobImportError("Paste a public job URL first.");
+      setJobImportSuccess(null);
+      return;
+    }
+
+    setJobImportBusy(true);
+    setJobImportError(null);
+    setJobImportSuccess(null);
+
+    try {
+      const response = await fetch("/api/job-import", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          url: jobUrl.trim(),
+        }),
+      });
+
+      const data = (await response.json()) as {
+        url?: string;
+        jobTitle?: string;
+        companyName?: string;
+        jobDescription?: string;
+        extractionMethod?: "structured_data" | "page_text";
+        message?: string;
+      };
+
+      if (!response.ok || !data.jobDescription) {
+        throw new Error(
+          data.message ??
+            "JobLens could not import this job page.",
+        );
+      }
+
+      setJobUrl(data.url ?? jobUrl.trim());
+      setJobDescription(data.jobDescription);
+
+      if (data.jobTitle?.trim()) {
+        setJobTitle(data.jobTitle.trim());
+      }
+
+      if (data.companyName?.trim()) {
+        setCompanyName(data.companyName.trim());
+      }
+
+      setErrors((previous) => {
+        const {
+          jobTitle: _jobTitle,
+          jobDescription: _jobDescription,
+          ...rest
+        } = previous;
+
+        return rest;
+      });
+
+      setJobImportSuccess(
+        data.extractionMethod === "structured_data"
+          ? "Job details imported. Review them before analysing."
+          : "Readable page text imported. Review it before analysing.",
+      );
+    } catch (error) {
+      setJobImportError(
+        error instanceof Error
+          ? error.message
+          : "JobLens could not import this page. Paste the description manually instead.",
+      );
+    } finally {
+      setJobImportBusy(false);
+    }
+  };
+
   const handleFile = async (file: File | undefined | null) => {
     if (!file) return;
     setCvFileError(null);
@@ -367,6 +448,7 @@ function Index() {
       const saved = await saveApplicationForCurrentUser({
         jobTitle: jobTitle.trim(),
         companyName: companyName.trim(),
+        jobUrl: jobUrl.trim() || undefined,
         jobDescription: jobDescription.trim() || undefined,
         status: "Saved",
         matchScore: analysis.matchScore,
@@ -446,6 +528,63 @@ function Index() {
                 }}
                 noValidate
               >
+                <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/35 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                    <div className="min-w-0 flex-1">
+                      <label
+                        htmlFor="jobUrl"
+                        className="mb-1.5 block text-sm font-medium"
+                      >
+                        Job URL
+                        <span className="ml-1 text-xs font-normal text-[color:var(--color-muted-foreground)]">
+                          (optional)
+                        </span>
+                      </label>
+
+                      <input
+                        id="jobUrl"
+                        type="url"
+                        value={jobUrl}
+                        onChange={(event) => {
+                          setJobUrl(event.target.value);
+                          setJobImportError(null);
+                          setJobImportSuccess(null);
+                        }}
+                        placeholder="https://careers.company.com/jobs/..."
+                        className="input"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={importJobFromUrl}
+                      disabled={jobImportBusy || !jobUrl.trim()}
+                      className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-[color:var(--color-primary)]/25 bg-[color:var(--color-primary)]/10 px-4 py-2.5 text-sm font-semibold text-[color:var(--color-primary)] transition hover:bg-[color:var(--color-primary)]/15 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {jobImportBusy ? "Importing..." : "Import Job"}
+                    </button>
+                  </div>
+
+                  <p className="mt-2 text-xs leading-relaxed text-[color:var(--color-muted-foreground)]">
+                    Works with many public job pages. Pages requiring login or blocking automated access may still need a manual paste.
+                  </p>
+
+                  {jobImportSuccess && (
+                    <p className="mt-2 text-xs font-medium text-[color:var(--color-success)]">
+                      ✓ {jobImportSuccess}
+                    </p>
+                  )}
+
+                  {jobImportError && (
+                    <p
+                      role="alert"
+                      className="mt-2 text-xs font-medium text-[color:var(--color-danger)]"
+                    >
+                      {jobImportError}
+                    </p>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <Field
                     id="jobTitle"

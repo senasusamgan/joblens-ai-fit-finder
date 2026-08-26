@@ -9,33 +9,19 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TermsRouteImport } from './routes/terms'
-import { Route as PrivacyRouteImport } from './routes/privacy'
-import { Route as GoalsRouteImport } from './routes/goals'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as ApplicationsRouteImport } from './routes/applications'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ApiInterviewPrepRouteImport } from './routes/api/interview-prep'
+import { Route as ApplicationsRouteImport } from './routes/applications'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as GoalsRouteImport } from './routes/goals'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as ApiAnalyzeRouteImport } from './routes/api/analyze'
+import { Route as ApiInterviewPrepRouteImport } from './routes/api/interview-prep'
+import { Route as ApiJobImportRouteImport } from './routes/api/job-import'
 
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GoalsRoute = GoalsRouteImport.update({
-  id: '/goals',
-  path: '/goals',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApplicationsRoute = ApplicationsRouteImport.update({
@@ -43,9 +29,29 @@ const ApplicationsRoute = ApplicationsRouteImport.update({
   path: '/applications',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GoalsRoute = GoalsRouteImport.update({
+  id: '/goals',
+  path: '/goals',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAnalyzeRoute = ApiAnalyzeRouteImport.update({
+  id: '/api/analyze',
+  path: '/api/analyze',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiInterviewPrepRoute = ApiInterviewPrepRouteImport.update({
@@ -53,9 +59,9 @@ const ApiInterviewPrepRoute = ApiInterviewPrepRouteImport.update({
   path: '/api/interview-prep',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAnalyzeRoute = ApiAnalyzeRouteImport.update({
-  id: '/api/analyze',
-  path: '/api/analyze',
+const ApiJobImportRoute = ApiJobImportRouteImport.update({
+  id: '/api/job-import',
+  path: '/api/job-import',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/api/analyze': typeof ApiAnalyzeRoute
   '/api/interview-prep': typeof ApiInterviewPrepRoute
+  '/api/job-import': typeof ApiJobImportRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/api/analyze': typeof ApiAnalyzeRoute
   '/api/interview-prep': typeof ApiInterviewPrepRoute
+  '/api/job-import': typeof ApiJobImportRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/api/analyze': typeof ApiAnalyzeRoute
   '/api/interview-prep': typeof ApiInterviewPrepRoute
+  '/api/job-import': typeof ApiJobImportRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/api/analyze'
     | '/api/interview-prep'
+    | '/api/job-import'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/api/analyze'
     | '/api/interview-prep'
+    | '/api/job-import'
   id:
     | '__root__'
     | '/'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/api/analyze'
     | '/api/interview-prep'
+    | '/api/job-import'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,36 +144,16 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   ApiAnalyzeRoute: typeof ApiAnalyzeRoute
   ApiInterviewPrepRoute: typeof ApiInterviewPrepRoute
+  ApiJobImportRoute: typeof ApiJobImportRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/goals': {
-      id: '/goals'
-      path: '/goals'
-      fullPath: '/goals'
-      preLoaderRoute: typeof GoalsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/applications': {
@@ -171,11 +163,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApplicationsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/goals': {
+      id: '/goals'
+      path: '/goals'
+      fullPath: '/goals'
+      preLoaderRoute: typeof GoalsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/analyze': {
+      id: '/api/analyze'
+      path: '/api/analyze'
+      fullPath: '/api/analyze'
+      preLoaderRoute: typeof ApiAnalyzeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/interview-prep': {
@@ -185,11 +205,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiInterviewPrepRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/analyze': {
-      id: '/api/analyze'
-      path: '/api/analyze'
-      fullPath: '/api/analyze'
-      preLoaderRoute: typeof ApiAnalyzeRouteImport
+    '/api/job-import': {
+      id: '/api/job-import'
+      path: '/api/job-import'
+      fullPath: '/api/job-import'
+      preLoaderRoute: typeof ApiJobImportRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -204,6 +224,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   ApiAnalyzeRoute: ApiAnalyzeRoute,
   ApiInterviewPrepRoute: ApiInterviewPrepRoute,
+  ApiJobImportRoute: ApiJobImportRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
