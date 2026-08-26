@@ -2276,15 +2276,16 @@ function AppCard({
         ) : null}
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-3">
         <label className="sr-only" htmlFor={`status-${app.id}`}>
           Status for {app.jobTitle}
         </label>
+
         <select
           id={`status-${app.id}`}
           value={app.status}
           onChange={(e) => onStatus(app.id, e.target.value as ApplicationStatus)}
-          className="min-w-0 flex-1 rounded-lg border border-[color:var(--color-border)] bg-white px-2 py-1.5 text-xs font-medium text-[color:var(--color-surface-foreground)]"
+          className="w-full rounded-lg border border-[color:var(--color-border)] bg-white px-2 py-1.5 text-xs font-medium text-[color:var(--color-surface-foreground)]"
         >
           {APPLICATION_STATUSES.map((s) => (
             <option key={s} value={s}>
@@ -2292,51 +2293,61 @@ function AppCard({
             </option>
           ))}
         </select>
-        {app.jobUrl && (
-          <a
-            href={app.jobUrl}
-            target="_blank"
-            rel="noreferrer noopener"
-            aria-label={`Open job posting for ${app.jobTitle}`}
-            className="rounded-lg border border-[color:var(--color-border)] p-1.5 text-[color:var(--color-muted-foreground)] hover:bg-[color:var(--color-muted)]"
+
+        <div className="mt-2 flex w-full items-center gap-1.5">
+          {app.jobUrl && (
+            <a
+              href={app.jobUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              aria-label={`Open job posting for ${app.jobTitle}`}
+              title="Open job posting"
+              className="inline-flex h-8 min-w-0 flex-1 items-center justify-center rounded-lg border border-[color:var(--color-border)] text-[color:var(--color-muted-foreground)] transition hover:bg-[color:var(--color-muted)]"
+            >
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+            </a>
+          )}
+
+          <button
+            type="button"
+            onClick={() => onTimeline(app)}
+            aria-label={`View timeline for ${app.jobTitle}`}
+            title="View timeline"
+            className="inline-flex h-8 min-w-0 flex-1 items-center justify-center rounded-lg border border-[color:var(--color-border)] text-[color:var(--color-muted-foreground)] transition hover:bg-[color:var(--color-muted)]"
           >
-            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-          </a>
-        )}
-        <button
-          type="button"
-          onClick={() => onTimeline(app)}
-          aria-label={`View timeline for ${app.jobTitle}`}
-          title="View timeline"
-          className="rounded-lg border border-[color:var(--color-border)] p-1.5 text-[color:var(--color-muted-foreground)] hover:bg-[color:var(--color-muted)]"
-        >
-          <History className="h-3.5 w-3.5" aria-hidden />
-        </button>
-        <button
-          type="button"
-          onClick={() => onReminder(app)}
-          aria-label={`Add reminder for ${app.jobTitle}`}
-          title="Add reminder"
-          className="rounded-lg border border-[color:var(--color-border)] p-1.5 text-[color:var(--color-primary)] hover:bg-[color:var(--color-primary)]/10"
-        >
-          <Bell className="h-3.5 w-3.5" aria-hidden />
-        </button>
-        <button
-          type="button"
-          onClick={() => onEdit(app)}
-          aria-label={`View or edit ${app.jobTitle}`}
-          className="rounded-lg border border-[color:var(--color-border)] p-1.5 text-[color:var(--color-muted-foreground)] hover:bg-[color:var(--color-muted)]"
-        >
-          <Pencil className="h-3.5 w-3.5" aria-hidden />
-        </button>
-        <button
-          type="button"
-          onClick={() => onDelete(app)}
-          aria-label={`Delete ${app.jobTitle}`}
-          className="rounded-lg border border-[color:var(--color-border)] p-1.5 text-[color:var(--color-danger)] hover:bg-[color:var(--color-danger)]/10"
-        >
-          <Trash2 className="h-3.5 w-3.5" aria-hidden />
-        </button>
+            <History className="h-3.5 w-3.5" aria-hidden />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onReminder(app)}
+            aria-label={`Add reminder for ${app.jobTitle}`}
+            title="Add reminder"
+            className="inline-flex h-8 min-w-0 flex-1 items-center justify-center rounded-lg border border-[color:var(--color-border)] text-[color:var(--color-primary)] transition hover:bg-[color:var(--color-primary)]/10"
+          >
+            <Bell className="h-3.5 w-3.5" aria-hidden />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onEdit(app)}
+            aria-label={`View or edit ${app.jobTitle}`}
+            title="Edit application"
+            className="inline-flex h-8 min-w-0 flex-1 items-center justify-center rounded-lg border border-[color:var(--color-border)] text-[color:var(--color-muted-foreground)] transition hover:bg-[color:var(--color-muted)]"
+          >
+            <Pencil className="h-3.5 w-3.5" aria-hidden />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onDelete(app)}
+            aria-label={`Delete ${app.jobTitle}`}
+            title="Delete application"
+            className="inline-flex h-8 min-w-0 flex-1 items-center justify-center rounded-lg border border-[color:var(--color-border)] text-[color:var(--color-danger)] transition hover:bg-[color:var(--color-danger)]/10"
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        </div>
       </div>
     </article>
   );
