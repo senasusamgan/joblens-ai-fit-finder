@@ -29,6 +29,14 @@ function daysSince(iso?: string): number {
   );
 }
 
+function toLocalDateTimeInput(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T09:00`;
+}
+
 function dateAfter(
   iso: string | undefined,
   days: number,
@@ -36,16 +44,16 @@ function dateAfter(
   const base = iso ? new Date(iso) : new Date();
 
   if (Number.isNaN(base.getTime())) {
-    return new Date().toISOString().slice(0, 10);
+    return toLocalDateTimeInput(new Date());
   }
 
   base.setDate(base.getDate() + days);
 
-  return base.toISOString().slice(0, 10);
+  return toLocalDateTimeInput(base);
 }
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return toLocalDateTimeInput(new Date());
 }
 
 function buildMessage(app: Application): string {
