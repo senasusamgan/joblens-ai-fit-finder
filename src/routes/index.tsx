@@ -785,17 +785,17 @@ function Index() {
                     {targetRoleFitLabel}
                   </h2>
 
-                  <p className="mt-2 max-w-xl text-sm leading-relaxed text-[color:var(--color-muted-foreground)]">
+                  <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/70">
                     {targetRoleFitDescription}
                   </p>
 
                   {targetRoleFit.matchedTargetRole &&
                     targetRoleFit.level !== "not_set" && (
-                      <p className="mt-3 text-xs text-[color:var(--color-muted-foreground)]">
+                      <p className="mt-3 text-xs text-white/60">
                         {analysisLang === "Turkish"
                           ? "En yakın hedef rol:"
                           : "Closest target role:"}{" "}
-                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">
+                        <span className="font-semibold text-white/90">
                           {targetRoleFit.matchedTargetRole}
                         </span>
                       </p>
@@ -808,7 +808,7 @@ function Index() {
                       {targetRoleFit.score}%
                     </p>
 
-                    <p className="mt-1 text-xs text-[color:var(--color-muted-foreground)]">
+                    <p className="mt-1 text-xs text-white/55">
                       {analysisLang === "Turkish"
                         ? "hedef rol benzerliği"
                         : "target-role similarity"}
@@ -826,8 +826,8 @@ function Index() {
                 )}
               </div>
 
-              <div className="mt-4 border-t border-[color:var(--color-border)] pt-3">
-                <p className="text-[11px] leading-relaxed text-[color:var(--color-muted-foreground)]">
+              <div className="mt-4 border-t border-white/15 pt-3">
+                <p className="text-[11px] leading-relaxed text-white/50">
                   {analysisLang === "Turkish"
                     ? "Bu skor AI Match skorundan ayrıdır. Yalnızca ilan başlığını, My Goals bölümünde belirlediğin hedef rollerle karşılaştırır."
                     : "This is separate from your AI Match score. It only compares the job title with the target roles defined in My Goals."}
