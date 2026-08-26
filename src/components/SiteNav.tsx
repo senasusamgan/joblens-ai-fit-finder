@@ -8,7 +8,7 @@ import {
 import { AuthControl } from "@/components/AuthControl";
 
 const linkBase =
-  "inline-flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium text-white/65 transition hover:bg-white/10 hover:text-white md:px-3 md:py-1.5 md:text-sm";
+  "inline-flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-[11px] font-medium leading-none text-white/65 transition hover:bg-white/10 hover:text-white md:flex-row md:gap-1.5 md:px-3 md:py-1.5 md:text-sm";
 
 export function SiteNav() {
   return (
