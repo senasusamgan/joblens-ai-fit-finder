@@ -254,6 +254,21 @@ function isPrivateIpv4(hostname: string): boolean {
   );
 }
 
+export function isLinkedInJobUrl(value: string): boolean {
+  try {
+    const url = new URL(value.trim());
+    const hostname = url.hostname.toLowerCase();
+
+    return (
+      hostname === "linkedin.com" ||
+      hostname === "www.linkedin.com" ||
+      hostname.endsWith(".linkedin.com")
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function parsePublicJobUrl(value: string): URL {
   const url = new URL(value.trim());
 

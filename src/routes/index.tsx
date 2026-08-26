@@ -15,6 +15,7 @@ import {
 import {
   buildTargetRoleFit,
 } from "@/lib/target-role-fit";
+import { isLinkedInJobUrl } from "@/lib/job-url-import";
 
 
 export const Route = createFileRoute("/")({
@@ -308,6 +309,14 @@ function Index() {
   const importJobFromUrl = async () => {
     if (!jobUrl.trim()) {
       setJobImportError("Paste a public job URL first.");
+      setJobImportSuccess(null);
+      return;
+    }
+
+    if (isLinkedInJobUrl(jobUrl)) {
+      setJobImportError(
+        "LinkedIn job pages can’t be imported automatically. Copy the job description from LinkedIn and paste it below. You can still keep the LinkedIn URL with your application.",
+      );
       setJobImportSuccess(null);
       return;
     }
