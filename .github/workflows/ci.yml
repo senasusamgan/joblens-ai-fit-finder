@@ -28,5 +28,8 @@ jobs:
       - name: Verify Gmail signal engine
         run: bun run verify:gmail
 
+      - name: Verify application tracking
+        run: bun run verify:applications
+
       - name: Build production app
         run: bun run build

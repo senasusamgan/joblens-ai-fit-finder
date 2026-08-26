@@ -17,6 +17,9 @@ import {
 } from "@/lib/target-role-fit";
 import { isLinkedInJobUrl } from "@/lib/job-url-import";
 import {
+  detectApplicationSourceFromUrl,
+} from "@/lib/application-source";
+import {
   buildAnalysisExportFilename,
   buildAnalysisExportText,
   buildAnalysisShareSummary,
@@ -466,6 +469,8 @@ function Index() {
         jobTitle: jobTitle.trim(),
         companyName: companyName.trim(),
         jobUrl: jobUrl.trim() || undefined,
+        applicationSource:
+          detectApplicationSourceFromUrl(jobUrl),
         jobDescription: jobDescription.trim() || undefined,
         status: "Saved",
         matchScore: analysis.matchScore,

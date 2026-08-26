@@ -105,6 +105,7 @@ export type Database = {
       applications: {
         Row: {
           applied_at: string | null
+          application_source: string | null
           company_name: string
           created_at: string
           id: string
@@ -121,6 +122,7 @@ export type Database = {
         }
         Insert: {
           applied_at?: string | null
+          application_source?: string | null
           company_name?: string
           created_at?: string
           id?: string
@@ -137,6 +139,7 @@ export type Database = {
         }
         Update: {
           applied_at?: string | null
+          application_source?: string | null
           company_name?: string
           created_at?: string
           id?: string

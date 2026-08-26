@@ -33,6 +33,7 @@ export interface ApplicationPerformanceInsights {
   scoreSegments: PerformanceSegment[];
   roleSegments: PerformanceSegment[];
   companySegments: PerformanceSegment[];
+  sourceSegments: PerformanceSegment[];
 }
 
 function hasEverReached(
@@ -194,15 +195,38 @@ export function buildApplicationPerformanceInsights(
         b.submitted - a.submitted,
     );
 
+  const sourceGroups = groupByText(
+    applications,
+    (application) =>
+      application.applicationSource ?? "",
+  );
+
+  const sourceSegments = Array.from(sourceGroups.entries())
+    .map(([key, groupedApplications]) =>
+      buildSegment(
+        key,
+        groupedApplications[0]?.applicationSource ?? key,
+        groupedApplications,
+        events,
+      ),
+    )
+    .filter((segment) => segment.submitted >= 2)
+    .sort(
+      (a, b) =>
+        b.interviewRate - a.interviewRate ||
+        b.submitted - a.submitted,
+    );
+
   return {
     scoreSegments,
     roleSegments,
     companySegments,
+    sourceSegments,
   };
 }
 
 export interface PerformanceSignal {
-  type: "match_score" | "role" | "company";
+  type: "match_score" | "role" | "company" | "source";
   label: string;
   submitted: number;
   interviewReached: number;
@@ -232,6 +256,10 @@ export function buildTopPerformanceSignal(
       type: "company" as const,
       segment,
     })),
+    ...insights.sourceSegments.map((segment) => ({
+      type: "source" as const,
+      segment,
+    })),
   ];
 
   if (candidates.length === 0) return null;
@@ -253,7 +281,9 @@ export function buildTopPerformanceSignal(
       ? "match-score range"
       : best.type === "role"
         ? "role"
-        : "company";
+        : best.type === "company"
+          ? "company"
+          : "application source";
 
   return {
     type: best.type,
