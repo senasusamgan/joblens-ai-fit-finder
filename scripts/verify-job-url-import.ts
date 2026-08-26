@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import {
   extractJobFromHtml,
+  isLinkedInJobUrl,
   parsePublicJobUrl,
 } from "../src/lib/job-url-import.ts";
 
@@ -69,5 +70,21 @@ assert.throws(() =>
 assert.throws(() =>
   parsePublicJobUrl("http://192.168.1.5/job"),
 );
+
+assert.equal(
+  isLinkedInJobUrl(
+    "https://www.linkedin.com/jobs/view/123456789",
+  ),
+  true,
+);
+
+assert.equal(
+  isLinkedInJobUrl(
+    "https://jobs.lever.co/example/123",
+  ),
+  false,
+);
+
+console.log("✓ LinkedIn job URLs detected");
 
 console.log("✓ Job URL Import regression checks passed");

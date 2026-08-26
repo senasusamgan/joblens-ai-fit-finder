@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import {
   extractJobFromHtml,
+  isLinkedInJobUrl,
   parsePublicJobUrl,
 } from "@/lib/job-url-import";
 
@@ -110,6 +111,17 @@ export const Route = createFileRoute("/api/job-import")({
                 message: "Enter a valid public job URL.",
               },
               { status: 400 },
+            );
+          }
+
+          if (isLinkedInJobUrl(parsed.data.url)) {
+            return Response.json(
+              {
+                error: "linkedin_not_supported",
+                message:
+                  "LinkedIn job pages can’t be imported automatically. Copy the job description from LinkedIn and paste it manually instead.",
+              },
+              { status: 422 },
             );
           }
 
