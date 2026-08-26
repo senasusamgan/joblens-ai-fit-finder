@@ -83,6 +83,138 @@ const statusTone: Record<ApplicationStatus, string> = {
   Rejected: "bg-[color:var(--color-danger)]/15 text-[color:var(--color-danger)]",
 };
 
+type LifecycleStageState =
+  | "complete"
+  | "current"
+  | "pending";
+
+type LifecycleStage = {
+  id: string;
+  label: string;
+  status?: ApplicationStatus;
+  state: LifecycleStageState;
+  occurredAt?: string;
+};
+
+function buildApplicationLifecycle(
+  application: Application,
+  events: ApplicationEvent[],
+): LifecycleStage[] {
+  const occurredAtByStatus =
+    new Map<ApplicationStatus, string>();
+
+  const reached =
+    new Set<ApplicationStatus>(["Saved"]);
+
+  for (const event of events) {
+    if (
+      event.eventType === "created" &&
+      !occurredAtByStatus.has("Saved")
+    ) {
+      occurredAtByStatus.set(
+        "Saved",
+        event.occurredAt,
+      );
+    }
+
+    if (event.fromStatus) {
+      reached.add(event.fromStatus);
+    }
+
+    if (event.toStatus) {
+      reached.add(event.toStatus);
+
+      if (
+        !occurredAtByStatus.has(event.toStatus)
+      ) {
+        occurredAtByStatus.set(
+          event.toStatus,
+          event.occurredAt,
+        );
+      }
+    }
+  }
+
+  if (!occurredAtByStatus.has("Saved")) {
+    occurredAtByStatus.set(
+      "Saved",
+      application.createdAt,
+    );
+  }
+
+  if (
+    application.appliedAt &&
+    !occurredAtByStatus.has("Applied")
+  ) {
+    occurredAtByStatus.set(
+      "Applied",
+      application.appliedAt,
+    );
+    reached.add("Applied");
+  }
+
+  const linearProgression: ApplicationStatus[] = [
+    "Saved",
+    "Applied",
+    "Interview",
+    "Case",
+    "Offer",
+  ];
+
+  const currentIndex =
+    linearProgression.indexOf(application.status);
+
+  if (currentIndex >= 0) {
+    linearProgression
+      .slice(0, currentIndex + 1)
+      .forEach((status) => reached.add(status));
+  } else if (application.status === "Rejected") {
+    reached.add("Rejected");
+  }
+
+  const journeyStatuses: ApplicationStatus[] = [
+    "Saved",
+    "Applied",
+    "Interview",
+    "Case",
+  ];
+
+  const stages: LifecycleStage[] =
+    journeyStatuses.map((status) => ({
+      id: status,
+      label: status,
+      status,
+      state:
+        application.status === status
+          ? "current"
+          : reached.has(status)
+            ? "complete"
+            : "pending",
+      occurredAt:
+        occurredAtByStatus.get(status),
+    }));
+
+  const decisionStatus =
+    application.status === "Offer" ||
+    application.status === "Rejected"
+      ? application.status
+      : undefined;
+
+  stages.push({
+    id: "decision",
+    label: decisionStatus ?? "Offer / Rejected",
+    status: decisionStatus,
+    state: decisionStatus
+      ? "current"
+      : "pending",
+    occurredAt: decisionStatus
+      ? occurredAtByStatus.get(decisionStatus)
+      : undefined,
+  });
+
+  return stages;
+}
+
 type InterviewPrepResult = {
   introStrategy: string;
   likelyQuestions: {
@@ -226,6 +358,17 @@ function ApplicationsPage() {
           )
         : null,
     [emailImportPreview, apps],
+  );
+
+  const timelineLifecycle = useMemo(
+    () =>
+      timelineApp
+        ? buildApplicationLifecycle(
+            timelineApp,
+            timelineEvents,
+          )
+        : [],
+    [timelineApp, timelineEvents],
   );
 
   const stats = useMemo(() => summarise(apps), [apps]);
@@ -1439,7 +1582,103 @@ function ApplicationsPage() {
               </button>
             </div>
 
-            <div className="mt-6">
+            {!timelineBusy && !timelineError && (
+              <div className="mt-6 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/30 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--color-primary)]">
+                      Application journey
+                    </p>
+                    <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
+                      See which stages this application has reached and when.
+                    </p>
+                  </div>
+
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusTone[timelineApp.status]}`}
+                  >
+                    Current · {timelineApp.status}
+                  </span>
+                </div>
+
+                <ol className="mt-4 grid gap-2 sm:grid-cols-5">
+                  {timelineLifecycle.map(
+                    (stage, index) => {
+                      const rejected =
+                        stage.status === "Rejected";
+
+                      return (
+                        <li
+                          key={stage.id}
+                          className={`rounded-xl border p-3 ${
+                            stage.state === "pending"
+                              ? "border-[color:var(--color-border)] bg-white/50"
+                              : rejected
+                                ? "border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/10"
+                                : stage.state === "current"
+                                  ? "border-[color:var(--color-primary)]/30 bg-[color:var(--color-primary)]/10"
+                                  : "border-[color:var(--color-success)]/30 bg-[color:var(--color-success)]/10"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+                                stage.state === "pending"
+                                  ? "bg-[color:var(--color-muted)] text-[color:var(--color-muted-foreground)]"
+                                  : rejected
+                                    ? "bg-[color:var(--color-danger)]/15 text-[color:var(--color-danger)]"
+                                    : stage.state === "current"
+                                      ? "bg-[color:var(--color-primary)]/15 text-[color:var(--color-primary)]"
+                                      : "bg-[color:var(--color-success)]/15 text-[color:var(--color-success)]"
+                              }`}
+                            >
+                              {stage.state === "complete"
+                                ? "✓"
+                                : index + 1}
+                            </span>
+
+                            <p className="min-w-0 text-sm font-semibold">
+                              {stage.label}
+                            </p>
+                          </div>
+
+                          <p className="mt-2 text-[11px] leading-relaxed text-[color:var(--color-muted-foreground)]">
+                            {stage.state === "pending"
+                              ? "Not reached yet"
+                              : stage.occurredAt
+                                ? formatDate(
+                                    stage.occurredAt,
+                                  )
+                                : stage.state ===
+                                    "current"
+                                  ? "Current stage · date not recorded"
+                                  : "Reached · date not recorded"}
+                          </p>
+                        </li>
+                      );
+                    },
+                  )}
+                </ol>
+              </div>
+            )}
+
+            <div className="mt-6 flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--color-muted-foreground)]">
+                Detailed history
+              </p>
+              {!timelineBusy &&
+                !timelineError &&
+                timelineEvents.length > 0 && (
+                  <span className="text-xs text-[color:var(--color-muted-foreground)]">
+                    {timelineEvents.length}{" "}
+                    {timelineEvents.length === 1
+                      ? "event"
+                      : "events"}
+                  </span>
+                )}
+            </div>
+
+            <div className="mt-3">
               {timelineBusy ? (
                 <p className="py-8 text-center text-sm text-[color:var(--color-muted-foreground)]">
                   Loading history…
