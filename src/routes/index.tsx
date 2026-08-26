@@ -43,10 +43,10 @@ interface Analysis {
   verdict: Verdict;
   verdictExplanation: string;
   matchScore: number;
-  strongMatches: { requirement: string; cvEvidence: string; explanation: string }[];
-  partialMatches: { requirement: string; cvEvidence: string; remainingGap: string; explanation: string }[];
-  learnableGaps: { skill: string; importance: string; suggestion: string }[];
-  possibleBlockers: { requirement: string; reason: string; severity: Severity }[];
+  strongMatches: { requirement: string; jobEvidence: string; cvEvidence: string; explanation: string }[];
+  partialMatches: { requirement: string; jobEvidence: string; cvEvidence: string; remainingGap: string; explanation: string }[];
+  learnableGaps: { skill: string; jobEvidence: string; cvEvidence: string; importance: string; suggestion: string }[];
+  possibleBlockers: { requirement: string; jobEvidence: string; cvEvidence: string; reason: string; severity: Severity }[];
   cvSuggestions: { section: string; suggestion: string; reason: string; example: string }[];
   recruiterMessage: string;
   disclaimer: string;
@@ -95,6 +95,7 @@ const T = {
     possibleBlockers: "Possible Blockers",
     cvSuggestions: "CV Improvement Suggestions",
     recruiterMessage: "Recruiter Message",
+    jobEvidence: "Job evidence",
     cvEvidence: "CV evidence",
     remainingGap: "Remaining gap",
     exampleRewrite: "Example rewrite",
@@ -125,6 +126,7 @@ const T = {
     possibleBlockers: "Olası Engeller",
     cvSuggestions: "CV Geliştirme Önerileri",
     recruiterMessage: "İşe Alım Uzmanına Mesaj",
+    jobEvidence: "İlan kanıtı",
     cvEvidence: "CV kanıtı",
     remainingGap: "Eksik kalan nokta",
     exampleRewrite: "Örnek düzenleme",
@@ -906,6 +908,10 @@ function Index() {
                   {analysis.strongMatches.map((m, i) => (
                     <li key={i} className="rounded-lg border border-[color:var(--color-border)] p-4">
                       <p className="font-medium">{m.requirement}</p>
+                      <p className="mt-2 text-sm text-[color:var(--color-muted-foreground)]">
+                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">{t.jobEvidence}: </span>
+                        {m.jobEvidence}
+                      </p>
                       <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
                         <span className="font-semibold text-[color:var(--color-surface-foreground)]">{t.cvEvidence}: </span>
                         {m.cvEvidence}
@@ -925,6 +931,10 @@ function Index() {
                   {analysis.partialMatches.map((p, i) => (
                     <li key={i} className="rounded-lg border border-[color:var(--color-border)] p-4">
                       <p className="font-medium">{p.requirement}</p>
+                      <p className="mt-2 text-sm text-[color:var(--color-muted-foreground)]">
+                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">{t.jobEvidence}: </span>
+                        {p.jobEvidence}
+                      </p>
                       <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
                         <span className="font-semibold text-[color:var(--color-surface-foreground)]">{t.cvEvidence}: </span>
                         {p.cvEvidence}
@@ -953,7 +963,15 @@ function Index() {
                           {g.importance}
                         </span>
                       </div>
-                      <p className="mt-1 text-sm">{g.suggestion}</p>
+                      <p className="mt-2 text-sm text-[color:var(--color-muted-foreground)]">
+                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">{t.jobEvidence}: </span>
+                        {g.jobEvidence}
+                      </p>
+                      <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
+                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">{t.cvEvidence}: </span>
+                        {g.cvEvidence}
+                      </p>
+                      <p className="mt-2 text-sm">{g.suggestion}</p>
                     </li>
                   ))}
                 </ul>
@@ -976,7 +994,15 @@ function Index() {
                           {severityLabel[analysisLang][b.severity]} {t.severitySuffix}
                         </span>
                       </div>
-                      <p className="mt-1 text-sm">{b.reason}</p>
+                      <p className="mt-2 text-sm text-[color:var(--color-muted-foreground)]">
+                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">{t.jobEvidence}: </span>
+                        {b.jobEvidence}
+                      </p>
+                      <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
+                        <span className="font-semibold text-[color:var(--color-surface-foreground)]">{t.cvEvidence}: </span>
+                        {b.cvEvidence}
+                      </p>
+                      <p className="mt-2 text-sm">{b.reason}</p>
                     </li>
                   ))}
                 </ul>
