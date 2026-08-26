@@ -230,6 +230,38 @@ function DashboardPage() {
     [performanceInsights],
   );
 
+  const strongestScoreSegment = useMemo(
+    () =>
+      [...performanceInsights.scoreSegments]
+        .filter(
+          (segment) =>
+            segment.submitted >= 2 &&
+            segment.interviewReached > 0,
+        )
+        .sort(
+          (a, b) =>
+            b.interviewRate - a.interviewRate ||
+            b.submitted - a.submitted,
+        )[0] ?? null,
+    [performanceInsights.scoreSegments],
+  );
+
+  const strongestRoleSegment = useMemo(
+    () =>
+      performanceInsights.roleSegments.find(
+        (segment) => segment.interviewReached > 0,
+      ) ?? null,
+    [performanceInsights.roleSegments],
+  );
+
+  const strongestCompanySegment = useMemo(
+    () =>
+      performanceInsights.companySegments.find(
+        (segment) => segment.interviewReached > 0,
+      ) ?? null,
+    [performanceInsights.companySegments],
+  );
+
   const recentApplications = useMemo(
     () =>
       [...apps]
@@ -557,44 +589,78 @@ function DashboardPage() {
               </section>
 
               <section className="card-surface mt-6 p-6">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--color-primary)]">
-                    Performance Insights
-                  </p>
-                  <h2 className="mt-1 text-lg font-semibold">
-                    Where are you seeing the strongest signal?
-                  </h2>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--color-primary)]">
+                      Application Insights
+                    </p>
+
+                    <h2 className="mt-1 text-lg font-semibold">
+                      What is actually moving you forward?
+                    </h2>
+
+                    <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
+                      Patterns from your tracked applications and outcomes.
+                    </p>
+                  </div>
+
+                  <span className="text-xs text-[color:var(--color-muted-foreground)]">
+                    Observed history only
+                  </span>
                 </div>
 
                 {topPerformanceSignal ? (
-                  <div className="mt-5 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/35 p-5">
-                    <p className="text-xs font-medium text-[color:var(--color-muted-foreground)]">
-                      Strongest observed signal
+                  <div className="mt-5 rounded-2xl border border-[color:var(--color-primary)]/20 bg-[color:var(--color-primary)]/5 p-5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--color-primary)]">
+                      Strongest signal
                     </p>
 
                     <p className="mt-2 text-lg font-semibold">
                       {topPerformanceSignal.headline}
                     </p>
 
-                    <p className="mt-2 text-sm text-[color:var(--color-muted-foreground)]">
+                    <p className="mt-2 text-sm leading-relaxed text-[color:var(--color-muted-foreground)]">
                       {topPerformanceSignal.detail}
-                    </p>
-
-                    <p className="mt-4 text-xs text-[color:var(--color-muted-foreground)]">
-                      This is based only on your tracked application history and should be treated as directional, not predictive.
                     </p>
                   </div>
                 ) : (
                   <div className="mt-5 rounded-xl border border-dashed border-[color:var(--color-border)] p-5">
                     <p className="font-medium">
-                      Keep tracking — insights unlock as your history grows.
+                      No reliable pattern yet
                     </p>
 
                     <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
-                      JobLens only surfaces performance patterns when there is enough application history to avoid misleading conclusions.
+                      Keep tracking applications and outcomes. JobLens waits for repeated observations before surfacing a pattern.
                     </p>
                   </div>
                 )}
+
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <PerformancePatternCard
+                    eyebrow="Match score"
+                    title="Best observed score band"
+                    segment={strongestScoreSegment}
+                    emptyText="Need at least 2 scored applications with interview outcomes."
+                  />
+
+                  <PerformancePatternCard
+                    eyebrow="Role"
+                    title="Strongest role pattern"
+                    segment={strongestRoleSegment}
+                    emptyText="Apply to the same type of role more than once to unlock this pattern."
+                  />
+
+                  <PerformancePatternCard
+                    eyebrow="Company"
+                    title="Strongest company pattern"
+                    segment={strongestCompanySegment}
+                    emptyText="Repeated applications to the same company are needed for this signal."
+                  />
+                </div>
+
+                <p className="mt-4 text-xs text-[color:var(--color-muted-foreground)]">
+                  These patterns are directional, not predictive. Small samples can change quickly as you track more applications.
+                </p>
               </section>
 
               <div className="mt-6 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
@@ -792,6 +858,76 @@ function DashboardPage() {
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+function PerformancePatternCard({
+  eyebrow,
+  title,
+  segment,
+  emptyText,
+}: {
+  eyebrow: string;
+  title: string;
+  segment: {
+    label: string;
+    submitted: number;
+    interviewReached: number;
+    interviewRate: number;
+  } | null;
+  emptyText: string;
+}) {
+  return (
+    <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/30 p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--color-muted-foreground)]">
+        {eyebrow}
+      </p>
+
+      <p className="mt-1 text-sm font-semibold">
+        {title}
+      </p>
+
+      {segment ? (
+        <>
+          <p className="mt-4 text-base font-semibold text-[color:var(--color-primary)]">
+            {segment.label}
+          </p>
+
+          <div className="mt-3 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-2xl font-semibold">
+                {segment.interviewRate}%
+              </p>
+              <p className="mt-0.5 text-[11px] text-[color:var(--color-muted-foreground)]">
+                interview reach
+              </p>
+            </div>
+
+            <p className="text-right text-xs text-[color:var(--color-muted-foreground)]">
+              {segment.interviewReached} of {segment.submitted}
+              <br />
+              moved forward
+            </p>
+          </div>
+
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[color:var(--color-muted)]">
+            <div
+              className="h-full rounded-full bg-[color:var(--color-primary)]"
+              style={{
+                width: `${Math.max(
+                  4,
+                  Math.min(100, segment.interviewRate),
+                )}%`,
+              }}
+            />
+          </div>
+        </>
+      ) : (
+        <p className="mt-4 text-xs leading-relaxed text-[color:var(--color-muted-foreground)]">
+          {emptyText}
+        </p>
+      )}
     </div>
   );
 }
