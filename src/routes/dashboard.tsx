@@ -359,6 +359,58 @@ function DashboardPage() {
     }
   };
 
+  const snoozeReminder = async (
+    reminder: Reminder,
+    days: number,
+  ) => {
+    const nextDue = new Date();
+
+    nextDue.setDate(nextDue.getDate() + days);
+    nextDue.setHours(9, 0, 0, 0);
+
+    const dueAt = nextDue.toISOString();
+
+    try {
+      setLoadError(null);
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session) {
+        const updated = await updateCloudReminder(
+          reminder.id,
+          { dueAt },
+        );
+
+        setCloudMode(true);
+        setReminders((current) =>
+          current.map((item) =>
+            item.id === reminder.id
+              ? updated
+              : item,
+          ),
+        );
+      } else {
+        setCloudMode(false);
+        setReminders(
+          updateReminder(reminder.id, {
+            dueAt,
+          }),
+        );
+      }
+    } catch (error) {
+      console.error(
+        "[JobLens Dashboard] Could not snooze reminder:",
+        error,
+      );
+
+      setLoadError(
+        "We couldn’t reschedule this reminder. Please try again.",
+      );
+    }
+  };
+
 
   return (
     <div className="min-h-screen">
@@ -752,6 +804,7 @@ function DashboardPage() {
                               )}
                               overdue
                               onComplete={completeReminder}
+                              onSnooze={snoozeReminder}
                             />
                           ))}
                         </div>
@@ -774,6 +827,7 @@ function DashboardPage() {
                                 (app) => app.id === reminder.applicationId,
                               )}
                               onComplete={completeReminder}
+                              onSnooze={snoozeReminder}
                             />
                           ))}
                         </div>
@@ -982,11 +1036,16 @@ function ReminderAction({
   application,
   overdue = false,
   onComplete,
+  onSnooze,
 }: {
   reminder: Reminder;
   application?: Application;
   overdue?: boolean;
   onComplete: (reminder: Reminder) => void;
+  onSnooze: (
+    reminder: Reminder,
+    days: number,
+  ) => void | Promise<void>;
 }) {
   const due = new Date(reminder.dueAt);
 
@@ -1026,6 +1085,29 @@ function ReminderAction({
             {overdue ? "Overdue · " : ""}
             {dateLabel}
           </p>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--color-muted-foreground)]">
+              <Clock3 className="h-3 w-3" />
+              Remind later
+            </span>
+
+            <button
+              type="button"
+              onClick={() => void onSnooze(reminder, 1)}
+              className="rounded-lg border border-[color:var(--color-border)] bg-white px-2.5 py-1 text-[11px] font-semibold text-[color:var(--color-surface-foreground)] transition hover:bg-[color:var(--color-muted)]"
+            >
+              Tomorrow
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void onSnooze(reminder, 3)}
+              className="rounded-lg border border-[color:var(--color-border)] bg-white px-2.5 py-1 text-[11px] font-semibold text-[color:var(--color-surface-foreground)] transition hover:bg-[color:var(--color-muted)]"
+            >
+              +3 days
+            </button>
+          </div>
         </div>
 
         <button

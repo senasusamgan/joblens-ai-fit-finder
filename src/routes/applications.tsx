@@ -46,6 +46,7 @@ import {
 } from "@/lib/next-best-action";
 import {
   getFollowUpGuidance,
+  getReminderAssistantGuidance,
 } from "@/lib/follow-up-intelligence";
 import {
   parsePastedRecruitmentEmail,
@@ -461,9 +462,9 @@ function ApplicationsPage() {
     ? getNextBestAction(topActionApp)
     : null;
 
-  const reminderFollowUpGuidance =
-    reminderApp?.status === "Applied"
-      ? getFollowUpGuidance(reminderApp)
+  const reminderAssistantGuidance =
+    reminderApp
+      ? getReminderAssistantGuidance(reminderApp)
       : null;
 
   const timelineFollowUpGuidance =
@@ -1084,34 +1085,29 @@ function ApplicationsPage() {
   const openReminder = (app: Application) => {
     setReminderApp(app);
 
-    const suggestedTitle =
-      app.status === "Assessment"
-        ? "Assessment deadline"
-        : app.status === "Interview"
-          ? "Interview"
-          : app.status === "Case"
-            ? "Case deadline"
-            : "Follow up";
+    const assistantGuidance =
+      getReminderAssistantGuidance(app);
 
-    const followUpGuidance =
-      app.status === "Applied"
-        ? getFollowUpGuidance(app)
-        : null;
+    const suggestedTitle =
+      assistantGuidance?.actionTitle ??
+      (app.status === "Assessment"
+        ? "Assessment deadline"
+        : "Follow up");
 
     setReminderTitle(suggestedTitle);
     setReminderDueAt(
-      followUpGuidance?.suggestedReminderDate ?? "",
+      assistantGuidance?.suggestedReminderDate ?? "",
     );
     setReminderError(null);
     setFollowUpCopied(false);
   };
 
-  const copyFollowUpMessage = async () => {
-    if (!reminderFollowUpGuidance) return;
+  const copyReminderAssistantMessage = async () => {
+    if (!reminderAssistantGuidance) return;
 
     try {
       await navigator.clipboard.writeText(
-        reminderFollowUpGuidance.message,
+        reminderAssistantGuidance.message,
       );
       setFollowUpCopied(true);
 
@@ -2489,25 +2485,28 @@ function ApplicationsPage() {
               </button>
             </div>
 
-            {reminderFollowUpGuidance && (
+            {reminderAssistantGuidance && (
               <div className="mt-5 rounded-2xl border border-[color:var(--color-primary)]/20 bg-[color:var(--color-primary)]/5 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--color-primary)]">
-                      Follow-up guidance
+                      Suggested next step
                     </p>
                     <p className="mt-1 text-sm font-semibold">
-                      {reminderFollowUpGuidance.timing}
+                      {reminderAssistantGuidance.timing}
                     </p>
                   </div>
 
-                  <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-[color:var(--color-muted-foreground)]">
-                    {reminderFollowUpGuidance.daysSinceApplication} days since application
-                  </span>
+                  {reminderAssistantGuidance.daysSinceApplication !==
+                    undefined && (
+                    <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-[color:var(--color-muted-foreground)]">
+                      {reminderAssistantGuidance.daysSinceApplication} days since application
+                    </span>
+                  )}
                 </div>
 
                 <p className="mt-3 text-sm leading-relaxed text-[color:var(--color-muted-foreground)]">
-                  {reminderFollowUpGuidance.recommendation}
+                  {reminderAssistantGuidance.recommendation}
                 </p>
 
                 <div className="mt-4 rounded-xl border border-[color:var(--color-border)] bg-white p-3">
@@ -2518,7 +2517,7 @@ function ApplicationsPage() {
 
                     <button
                       type="button"
-                      onClick={copyFollowUpMessage}
+                      onClick={copyReminderAssistantMessage}
                       className="shrink-0 rounded-lg border border-[color:var(--color-border)] px-3 py-1.5 text-xs font-semibold hover:bg-[color:var(--color-muted)]"
                     >
                       {followUpCopied
@@ -2528,7 +2527,7 @@ function ApplicationsPage() {
                   </div>
 
                   <p className="mt-3 text-sm leading-relaxed">
-                    {reminderFollowUpGuidance.message}
+                    {reminderAssistantGuidance.message}
                   </p>
                 </div>
               </div>
@@ -2543,6 +2542,15 @@ function ApplicationsPage() {
                   onChange={(e) => setReminderTitle(e.target.value)}
                 >
                   <option value="Follow up">Follow up</option>
+                  <option value="Interview thank-you">
+                    Interview thank-you
+                  </option>
+                  <option value="Case follow-up">
+                    Case follow-up
+                  </option>
+                  <option value="Offer response">
+                    Offer response
+                  </option>
                   <option value="Assessment deadline">
                     Assessment deadline
                   </option>
