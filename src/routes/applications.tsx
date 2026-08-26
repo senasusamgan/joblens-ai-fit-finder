@@ -38,7 +38,10 @@ import {
   type ApplicationEvent,
 } from "@/lib/application-events";
 import { deleteRemindersForApplication } from "@/lib/reminders";
-import { getNextBestAction } from "@/lib/next-best-action";
+import {
+  getNextBestAction,
+  rankApplicationsByNextBestAction,
+} from "@/lib/next-best-action";
 import {
   parsePastedRecruitmentEmail,
   findMatchingApplicationFromEmail,
@@ -229,11 +232,16 @@ function ApplicationsPage() {
 
   const attentionApps = useMemo(
     () =>
-      apps.filter(
+      rankApplicationsByNextBestAction(apps).filter(
         (app) => getNextBestAction(app).priority === "high",
       ),
     [apps],
   );
+
+  const topActionApp = attentionApps[0] ?? null;
+  const topAction = topActionApp
+    ? getNextBestAction(topActionApp)
+    : null;
 
   const previewEmailImport = () => {
     setEmailImportError(null);
@@ -1011,34 +1019,98 @@ function ApplicationsPage() {
             </section>
           )}
 
-          {hydrated && attentionApps.length > 0 && (
-            <div className="mt-4 rounded-2xl border border-[color:var(--color-primary)]/20 bg-[color:var(--color-primary)]/10 px-5 py-4">
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[color:var(--color-primary)]/15 text-[color:var(--color-primary)]">
-                  <Sparkles className="h-4 w-4" aria-hidden />
+          {hydrated && topActionApp && topAction && (
+            <section className="mt-4 overflow-hidden rounded-2xl border border-[color:var(--color-primary)]/25 bg-[color:var(--color-primary)]/10">
+              <div className="flex flex-col gap-5 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--color-primary)]">
+                      <Sparkles className="h-4 w-4" aria-hidden />
+                      Action Center
+                    </div>
+
+                    <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white/65">
+                      {topAction.urgencyLabel}
+                    </span>
+                  </div>
+
+                  <p className="mt-3 text-sm text-white/55">
+                    Your highest-priority next move
+                  </p>
+
+                  <h2 className="mt-1 text-lg font-semibold text-white">
+                    {topAction.title}
+                  </h2>
+
+                  <p className="mt-1 text-sm font-medium text-white/80">
+                    {topActionApp.jobTitle} · {topActionApp.companyName}
+                  </p>
+
+                  <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/55">
+                    {topAction.description}
+                  </p>
+
+                  {attentionApps.length > 1 && (
+                    <p className="mt-3 text-xs text-white/40">
+                      +{attentionApps.length - 1} more high-priority action
+                      {attentionApps.length - 1 === 1 ? "" : "s"} waiting below
+                    </p>
+                  )}
                 </div>
 
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-white">
-                    {attentionApps.length} application{attentionApps.length === 1 ? "" : "s"} need your attention
-                  </p>
-
-                  <p className="mt-1 text-sm text-white/60">
-                    {attentionApps
-                      .slice(0, 3)
-                      .map((app) => app.companyName || app.jobTitle)
-                      .join(", ")}
-                    {attentionApps.length > 3
-                      ? ` +${attentionApps.length - 3} more`
-                      : ""}
-                  </p>
-
-                  <p className="mt-1 text-xs text-white/45">
-                    Review the highlighted next actions below.
-                  </p>
+                <div className="shrink-0">
+                  {topAction.kind === "analyze" && topAction.ctaLabel ? (
+                    <Link
+                      to="/"
+                      className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[color:var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+                    >
+                      {topAction.ctaLabel} →
+                    </Link>
+                  ) : topAction.kind === "interview_prep" && topAction.ctaLabel ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInterviewPrepApp(topActionApp);
+                        setInterviewPrepResult(null);
+                        setInterviewPrepError(null);
+                      }}
+                      className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[color:var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+                    >
+                      {topAction.ctaLabel} →
+                    </button>
+                  ) : topAction.kind === "reminder" && topAction.ctaLabel ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReminderApp(topActionApp);
+                        setReminderTitle(
+                          topActionApp.status === "Case"
+                            ? "Case deadline"
+                            : "Follow up",
+                        );
+                        setReminderDueAt("");
+                        setReminderError(null);
+                      }}
+                      className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[color:var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+                    >
+                      {topAction.ctaLabel} →
+                    </button>
+                  ) : topAction.kind === "edit" && topAction.ctaLabel ? (
+                    <button
+                      type="button"
+                      onClick={() => openEdit(topActionApp)}
+                      className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[color:var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+                    >
+                      {topAction.ctaLabel} →
+                    </button>
+                  ) : (
+                    <span className="inline-flex rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-white/50">
+                      No action needed
+                    </span>
+                  )}
                 </div>
               </div>
-            </div>
+            </section>
           )}
 
           {!hydrated ? null : apps.length === 0 ? (
@@ -1779,9 +1851,23 @@ function AppCard({
           </p>
         </div>
 
-        <p className="mt-1.5 text-xs font-semibold">
-          {nextAction.title}
-        </p>
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          <p className="text-xs font-semibold">
+            {nextAction.title}
+          </p>
+
+          <span
+            className={
+              nextAction.urgencyLabel === "Now"
+                ? "rounded-full bg-[color:var(--color-danger)]/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--color-danger)]"
+                : nextAction.urgencyLabel === "Soon"
+                  ? "rounded-full bg-[color:var(--color-warning)]/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--color-warning)]"
+                  : "rounded-full bg-[color:var(--color-muted)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--color-muted-foreground)]"
+            }
+          >
+            {nextAction.urgencyLabel}
+          </span>
+        </div>
 
         <p className="mt-1 text-[11px] leading-relaxed text-[color:var(--color-muted-foreground)]">
           {nextAction.description}
