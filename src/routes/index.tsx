@@ -2,7 +2,14 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { extractCvText, CvExtractError, MAX_CV_BYTES } from "@/lib/cv-extract";
 import { SiteNav } from "@/components/SiteNav";
-import { saveApplicationForCurrentUser } from "@/lib/cloud-applications";
+import {
+  findApplicationMatchForCurrentUser,
+  saveApplicationForCurrentUser,
+  updateApplicationForCurrentUser,
+} from "@/lib/cloud-applications";
+import type {
+  ApplicationMatch,
+} from "@/lib/application-matching";
 import { buildMatchDecisionBrief } from "@/lib/match-decision-brief";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -183,6 +190,18 @@ function Index() {
   const [copied, setCopied] = useState(false);
   const [copiedCvSuggestion, setCopiedCvSuggestion] = useState<number | null>(null);
   const [savedApplicationId, setSavedApplicationId] = useState<string | null>(null);
+  const [
+    existingApplicationMatch,
+    setExistingApplicationMatch,
+  ] = useState<ApplicationMatch | null>(null);
+  const [
+    applicationSaveBusy,
+    setApplicationSaveBusy,
+  ] = useState(false);
+  const [
+    applicationSaveError,
+    setApplicationSaveError,
+  ] = useState<string | null>(null);
   const [analysisExportStatus, setAnalysisExportStatus] =
     useState<"shared" | "copied" | "downloaded" | null>(null);
   const [searchGoals, setSearchGoals] =
@@ -441,6 +460,8 @@ function Index() {
     setSubmitError(null);
     setAnalysis(null);
     setSavedApplicationId(null);
+    setExistingApplicationMatch(null);
+    setApplicationSaveError(null);
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
@@ -461,32 +482,179 @@ function Index() {
     }
   };
 
+  const buildAnalysisApplicationInput = () => {
+    if (!analysis) return null;
+
+    return {
+      jobTitle: jobTitle.trim(),
+      companyName: companyName.trim(),
+      jobUrl: jobUrl.trim() || undefined,
+      applicationSource:
+        detectApplicationSourceFromUrl(jobUrl),
+      jobDescription:
+        jobDescription.trim() || undefined,
+      status: "Saved" as const,
+      matchScore: analysis.matchScore,
+      verdict: analysis.verdict,
+    };
+  };
+
   const saveToApplications = async () => {
-    if (!analysis || savedApplicationId) return;
+    if (
+      !analysis ||
+      savedApplicationId ||
+      applicationSaveBusy
+    ) {
+      return;
+    }
+
+    const payload =
+      buildAnalysisApplicationInput();
+
+    if (!payload) return;
+
+    setApplicationSaveBusy(true);
+    setApplicationSaveError(null);
 
     try {
-      const saved = await saveApplicationForCurrentUser({
-        jobTitle: jobTitle.trim(),
-        companyName: companyName.trim(),
-        jobUrl: jobUrl.trim() || undefined,
-        applicationSource:
-          detectApplicationSourceFromUrl(jobUrl),
-        jobDescription: jobDescription.trim() || undefined,
-        status: "Saved",
-        matchScore: analysis.matchScore,
-        verdict: analysis.verdict,
-      });
+      const existing =
+        await findApplicationMatchForCurrentUser(
+          payload,
+        );
+
+      if (existing) {
+        setExistingApplicationMatch(existing);
+        return;
+      }
+
+      const saved =
+        await saveApplicationForCurrentUser(
+          payload,
+        );
 
       setSavedApplicationId(saved.id);
+      setExistingApplicationMatch(null);
     } catch (error) {
-      console.error("[JobLens] Could not save analysis to applications:", error);
+      console.error(
+        "[JobLens] Could not save analysis to applications:",
+        error,
+      );
+
+      setApplicationSaveError(
+        "JobLens couldn’t save this application. Please try again.",
+      );
+    } finally {
+      setApplicationSaveBusy(false);
     }
   };
+
+  const updateExistingApplicationFromAnalysis =
+    async () => {
+      if (
+        !analysis ||
+        !existingApplicationMatch ||
+        applicationSaveBusy
+      ) {
+        return;
+      }
+
+      setApplicationSaveBusy(true);
+      setApplicationSaveError(null);
+
+      try {
+        const existing =
+          existingApplicationMatch.application;
+
+        const detectedSource =
+          detectApplicationSourceFromUrl(jobUrl);
+
+        const updated =
+          await updateApplicationForCurrentUser(
+            existing.id,
+            {
+              jobTitle:
+                jobTitle.trim() ||
+                existing.jobTitle,
+              companyName:
+                companyName.trim() ||
+                existing.companyName,
+              jobUrl:
+                jobUrl.trim() ||
+                existing.jobUrl,
+              applicationSource:
+                detectedSource ??
+                existing.applicationSource,
+              jobDescription:
+                jobDescription.trim() ||
+                existing.jobDescription,
+              matchScore:
+                analysis.matchScore,
+              verdict:
+                analysis.verdict,
+            },
+          );
+
+        setSavedApplicationId(updated.id);
+        setExistingApplicationMatch(null);
+      } catch (error) {
+        console.error(
+          "[JobLens] Could not update existing application:",
+          error,
+        );
+
+        setApplicationSaveError(
+          "JobLens couldn’t update this application. Please try again.",
+        );
+      } finally {
+        setApplicationSaveBusy(false);
+      }
+    };
+
+  const saveAnalysisAsSeparateApplication =
+    async () => {
+      if (
+        !analysis ||
+        applicationSaveBusy
+      ) {
+        return;
+      }
+
+      const payload =
+        buildAnalysisApplicationInput();
+
+      if (!payload) return;
+
+      setApplicationSaveBusy(true);
+      setApplicationSaveError(null);
+
+      try {
+        const saved =
+          await saveApplicationForCurrentUser(
+            payload,
+          );
+
+        setSavedApplicationId(saved.id);
+        setExistingApplicationMatch(null);
+      } catch (error) {
+        console.error(
+          "[JobLens] Could not save separate application:",
+          error,
+        );
+
+        setApplicationSaveError(
+          "JobLens couldn’t save this application. Please try again.",
+        );
+      } finally {
+        setApplicationSaveBusy(false);
+      }
+    };
 
   const reset = () => {
     setAnalysis(null);
     setSubmitError(null);
     setSavedApplicationId(null);
+    setExistingApplicationMatch(null);
+    setApplicationSaveError(null);
     setAnalysisExportStatus(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -997,21 +1165,33 @@ function Index() {
                 <button
                   type="button"
                   onClick={saveToApplications}
-                  disabled={!!savedApplicationId}
-                  className={`inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition ${
+                  disabled={
+                    !!savedApplicationId ||
+                    applicationSaveBusy ||
+                    !!existingApplicationMatch
+                  }
+                  className={`inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition disabled:cursor-not-allowed ${
                     savedApplicationId
                       ? "bg-[color:var(--color-success)] cursor-default"
-                      : "hover:opacity-90"
+                      : "hover:opacity-90 disabled:opacity-60"
                   }`}
-                  style={savedApplicationId ? undefined : { background: "var(--gradient-hero)" }}
+                  style={
+                    savedApplicationId
+                      ? undefined
+                      : { background: "var(--gradient-hero)" }
+                  }
                 >
                   {savedApplicationId
                     ? analysisLang === "Turkish"
                       ? "✓ Başvurulara Kaydedildi"
                       : "✓ Saved to Applications"
-                    : analysisLang === "Turkish"
-                      ? "Başvurulara Kaydet"
-                      : "Save to Applications"}
+                    : applicationSaveBusy
+                      ? analysisLang === "Turkish"
+                        ? "Kontrol ediliyor..."
+                        : "Checking..."
+                      : analysisLang === "Turkish"
+                        ? "Başvurulara Kaydet"
+                        : "Save to Applications"}
                 </button>
 
                 {savedApplicationId && (
@@ -1024,6 +1204,83 @@ function Index() {
                 )}
               </div>
             </div>
+
+              {existingApplicationMatch &&
+                !savedApplicationId && (
+                  <div className="mt-5 rounded-xl border border-[color:var(--color-warning)]/30 bg-[color:var(--color-warning)]/10 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--color-warning-foreground)]">
+                      {analysisLang === "Turkish"
+                        ? "Mevcut başvuru bulundu"
+                        : "Existing application found"}
+                    </p>
+
+                    <p className="mt-2 font-semibold">
+                      {existingApplicationMatch.application.jobTitle}
+                    </p>
+
+                    <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
+                      {existingApplicationMatch.application.companyName}
+                      {" · "}
+                      {existingApplicationMatch.application.status}
+                    </p>
+
+                    <p className="mt-2 text-xs leading-relaxed text-[color:var(--color-muted-foreground)]">
+                      {existingApplicationMatch.reason === "job_url"
+                        ? analysisLang === "Turkish"
+                          ? "Aynı iş ilanı bağlantısına sahip bir kayıt zaten var."
+                          : "An application with the same job URL already exists."
+                        : analysisLang === "Turkish"
+                          ? "Aynı şirket ve rol için bir kayıt zaten var."
+                          : "An application for the same company and role already exists."}
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={applicationSaveBusy}
+                        onClick={() =>
+                          void updateExistingApplicationFromAnalysis()
+                        }
+                        className="rounded-xl bg-[color:var(--color-primary)] px-4 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+                      >
+                        {analysisLang === "Turkish"
+                          ? "Mevcut Kaydı Güncelle"
+                          : "Update Existing"}
+                      </button>
+
+                      <Link
+                        to="/applications"
+                        className="rounded-xl border border-[color:var(--color-border)] px-4 py-2 text-xs font-semibold transition hover:bg-[color:var(--color-muted)]"
+                      >
+                        {analysisLang === "Turkish"
+                          ? "Mevcut Kaydı Gör"
+                          : "View Existing"}
+                      </Link>
+
+                      <button
+                        type="button"
+                        disabled={applicationSaveBusy}
+                        onClick={() =>
+                          void saveAnalysisAsSeparateApplication()
+                        }
+                        className="rounded-xl border border-[color:var(--color-border)] px-4 py-2 text-xs font-semibold transition hover:bg-[color:var(--color-muted)] disabled:opacity-50"
+                      >
+                        {analysisLang === "Turkish"
+                          ? "Ayrı Kaydet"
+                          : "Save Separately"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+              {applicationSaveError && (
+                <p
+                  role="alert"
+                  className="mt-3 text-sm font-medium text-[color:var(--color-danger)]"
+                >
+                  {applicationSaveError}
+                </p>
+              )}
 
             <div className="card-surface p-5 md:p-6">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

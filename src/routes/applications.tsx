@@ -64,6 +64,9 @@ import {
   detectApplicationSourceFromUrl,
   type ApplicationSource,
 } from "@/lib/application-source";
+import {
+  findStrongApplicationMatch,
+} from "@/lib/application-matching";
 
 export const Route = createFileRoute("/applications")({
   head: () => ({
@@ -280,6 +283,8 @@ function ApplicationsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [formError, setFormError] = useState<string | null>(null);
+  const [allowSeparateDuplicate, setAllowSeparateDuplicate] =
+    useState(false);
   const [cloudMode, setCloudMode] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
 
@@ -388,6 +393,37 @@ function ApplicationsPage() {
     };
   }, []);
 
+  const formDuplicateMatch = useMemo(
+    () =>
+      editingId
+        ? null
+        : findStrongApplicationMatch(
+            {
+              jobTitle: form.jobTitle,
+              companyName: form.companyName,
+              jobUrl:
+                form.jobUrl.trim() || undefined,
+            },
+            apps,
+          ),
+    [
+      apps,
+      editingId,
+      form.jobTitle,
+      form.companyName,
+      form.jobUrl,
+    ],
+  );
+
+  useEffect(() => {
+    setAllowSeparateDuplicate(false);
+  }, [
+    editingId,
+    form.jobTitle,
+    form.companyName,
+    form.jobUrl,
+  ]);
+
   const emailImportMatch = useMemo(
     () =>
       emailImportPreview
@@ -424,6 +460,10 @@ function ApplicationsPage() {
       ),
     );
 
+    const previewApplications: Application[] = [
+      ...apps,
+    ];
+
     const importable =
       [] as typeof csvImportPreview.rows;
     const duplicateRows: number[] = [];
@@ -432,13 +472,32 @@ function ApplicationsPage() {
       const fingerprint =
         applicationImportFingerprint(row.input);
 
-      if (fingerprints.has(fingerprint)) {
+      const strongMatch =
+        findStrongApplicationMatch(
+          row.input,
+          previewApplications,
+        );
+
+      if (
+        fingerprints.has(fingerprint) ||
+        strongMatch
+      ) {
         duplicateRows.push(row.rowNumber);
         continue;
       }
 
       fingerprints.add(fingerprint);
       importable.push(row);
+
+      const now = new Date().toISOString();
+
+      previewApplications.push({
+        ...row.input,
+        id: `csv-preview-${row.rowNumber}`,
+        status: row.input.status ?? "Saved",
+        createdAt: now,
+        updatedAt: now,
+      });
     }
 
     return {
@@ -897,6 +956,17 @@ function ApplicationsPage() {
 
     if (!form.jobTitle.trim() || !form.companyName.trim()) {
       setFormError("Job title and company are required.");
+      return;
+    }
+
+    if (
+      !editingId &&
+      formDuplicateMatch &&
+      !allowSeparateDuplicate
+    ) {
+      setFormError(
+        "Existing application found. Review the existing record or choose Create separately if this is genuinely a different application.",
+      );
       return;
     }
 
@@ -2635,6 +2705,63 @@ function ApplicationsPage() {
             </div>
 
             <form className="mt-5 space-y-4" onSubmit={submitForm} noValidate>
+              {!editingId && formDuplicateMatch && (
+                <div className="rounded-xl border border-[color:var(--color-warning)]/30 bg-[color:var(--color-warning)]/10 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--color-warning-foreground)]">
+                    Existing application found
+                  </p>
+
+                  <p className="mt-2 font-semibold">
+                    {formDuplicateMatch.application.jobTitle}
+                  </p>
+
+                  <p className="mt-1 text-sm text-[color:var(--color-muted-foreground)]">
+                    {formDuplicateMatch.application.companyName}
+                    {" · "}
+                    {formDuplicateMatch.application.status}
+                  </p>
+
+                  <p className="mt-2 text-xs leading-relaxed text-[color:var(--color-muted-foreground)]">
+                    Matched by{" "}
+                    {formDuplicateMatch.reason === "job_url"
+                      ? "the same job URL"
+                      : "the same company and role"}.
+                    JobLens will not create another copy unless you explicitly choose to.
+                  </p>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openEdit(
+                          formDuplicateMatch.application,
+                        )
+                      }
+                      className="rounded-lg bg-[color:var(--color-primary)] px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90"
+                    >
+                      Edit existing
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAllowSeparateDuplicate(true);
+                        setFormError(null);
+                      }}
+                      className="rounded-lg border border-[color:var(--color-border)] bg-white px-3 py-2 text-xs font-semibold transition hover:bg-[color:var(--color-muted)]"
+                    >
+                      Create separately
+                    </button>
+                  </div>
+
+                  {allowSeparateDuplicate && (
+                    <p className="mt-2 text-xs text-[color:var(--color-muted-foreground)]">
+                      Separate creation enabled for this entry.
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField id="f-title" label="Job title" required>
                   <input
