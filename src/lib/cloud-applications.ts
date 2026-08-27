@@ -9,6 +9,7 @@ import {
   createApplication,
   loadApplications,
   saveApplications,
+  updateApplication,
   type Application,
   type ApplicationInput,
   type ApplicationStatus,
@@ -16,6 +17,10 @@ import {
 import {
   normaliseApplicationSource,
 } from "@/lib/application-source";
+import {
+  findStrongApplicationMatch,
+  type ApplicationMatch,
+} from "@/lib/application-matching";
 
 type ApplicationRow = Tables<"applications">;
 type ApplicationInsert = TablesInsert<"applications">;
@@ -215,4 +220,47 @@ export async function saveApplicationForCurrentUser(
   }
 
   return createCloudApplication(input);
+}
+
+export async function loadApplicationsForCurrentUser(): Promise<Application[]> {
+  const authenticated = await hasAuthenticatedUser();
+
+  return authenticated
+    ? loadCloudApplications()
+    : loadApplications();
+}
+
+export async function findApplicationMatchForCurrentUser(
+  input: ApplicationInput,
+): Promise<ApplicationMatch | null> {
+  const applications =
+    await loadApplicationsForCurrentUser();
+
+  return findStrongApplicationMatch(
+    input,
+    applications,
+  );
+}
+
+export async function updateApplicationForCurrentUser(
+  id: string,
+  patch: Partial<Omit<Application, "id" | "createdAt">>,
+): Promise<Application> {
+  const authenticated = await hasAuthenticatedUser();
+
+  if (authenticated) {
+    return updateCloudApplication(id, patch);
+  }
+
+  const applications = updateApplication(id, patch);
+
+  const updated = applications.find(
+    (application) => application.id === id,
+  );
+
+  if (!updated) {
+    throw new Error("Application could not be found.");
+  }
+
+  return updated;
 }

@@ -506,66 +506,59 @@ export function parsePastedRecruitmentEmail(
 }
 
 import type { Application } from "@/lib/applications";
+import {
+  findSingleCompanyApplicationMatch,
+  findStrongApplicationMatch,
+} from "./application-matching.ts";
 
 export interface EmailImportApplicationMatch {
   application: Application;
   reason: "company" | "company_and_position";
 }
 
-function normaliseMatchText(value: string): string {
-  return value
-    .toLocaleLowerCase("tr-TR")
-    .replace(/\b(a\.?\s*ş\.?|anonim şirketi|ltd\.?|limited|inc\.?|corp\.?|corporation)\b/giu, " ")
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 export function findMatchingApplicationFromEmail(
   parsed: ParsedRecruitmentEmail,
   applications: Application[],
 ): EmailImportApplicationMatch | null {
-  const company = normaliseMatchText(
-    parsed.companySuggestion,
-  );
+  const company = parsed.companySuggestion.trim();
 
   if (!company) return null;
 
-  const companyMatches = applications.filter(
-    (application) =>
-      normaliseMatchText(application.companyName) ===
-      company,
-  );
-
-  if (companyMatches.length === 0) {
-    return null;
-  }
-
-  const position = normaliseMatchText(
-    parsed.jobTitleSuggestion,
-  );
+  const position =
+    parsed.jobTitleSuggestion.trim();
 
   if (position) {
-    const positionMatches = companyMatches.filter(
-      (application) =>
-        normaliseMatchText(application.jobTitle) ===
-        position,
-    );
+    const strongMatch =
+      findStrongApplicationMatch(
+        {
+          jobTitle: position,
+          companyName: company,
+          jobUrl: undefined,
+        },
+        applications,
+      );
 
-    if (positionMatches.length === 1) {
+    if (
+      strongMatch?.reason ===
+      "company_and_role"
+    ) {
       return {
-        application: positionMatches[0],
+        application: strongMatch.application,
         reason: "company_and_position",
       };
     }
   }
 
-  if (companyMatches.length === 1) {
-    return {
-      application: companyMatches[0],
-      reason: "company",
-    };
-  }
+  const companyMatch =
+    findSingleCompanyApplicationMatch(
+      company,
+      applications,
+    );
 
-  return null;
+  if (!companyMatch) return null;
+
+  return {
+    application: companyMatch,
+    reason: "company",
+  };
 }
