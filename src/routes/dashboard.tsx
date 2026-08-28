@@ -52,6 +52,9 @@ import {
   buildApplicationAnalytics,
 } from "@/lib/application-analytics";
 import {
+  buildApplicationFunnelIntelligence,
+} from "@/lib/application-funnel-intelligence";
+import {
   buildApplicationPerformanceInsights,
   buildTopPerformanceSignal,
 } from "@/lib/application-performance-insights";
@@ -193,6 +196,15 @@ function DashboardPage() {
   const analytics = useMemo(
     () =>
       buildApplicationAnalytics(
+        apps,
+        applicationEvents,
+      ),
+    [apps, applicationEvents],
+  );
+
+  const funnelIntelligence = useMemo(
+    () =>
+      buildApplicationFunnelIntelligence(
         apps,
         applicationEvents,
       ),
@@ -591,6 +603,97 @@ function DashboardPage() {
                     <p className="mt-1 text-xs text-[color:var(--color-muted-foreground)]">
                       {analytics.offerReached} reached Offer
                     </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 border-t border-[color:var(--color-border)] pt-6">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold">
+                        Funnel Intelligence
+                      </p>
+                      <p className="mt-0.5 text-xs text-[color:var(--color-muted-foreground)]">
+                        Observed stage reach from submitted applications. Assessment and Case are optional stages.
+                      </p>
+                    </div>
+
+                    <span className="text-xs text-[color:var(--color-muted-foreground)]">
+                      Interview → Offer:{" "}
+                      {funnelIntelligence.interviewToOfferRate === null
+                        ? "—"
+                        : `${funnelIntelligence.interviewToOfferRate}%`}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid gap-2 sm:grid-cols-5">
+                    {funnelIntelligence.stages.map((stage) => (
+                      <div
+                        key={stage.stage}
+                        className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/25 p-3"
+                      >
+                        <p className="text-xs font-medium text-[color:var(--color-muted-foreground)]">
+                          {stage.stage}
+                        </p>
+
+                        <p className="mt-1 text-xl font-semibold">
+                          {stage.reached}
+                        </p>
+
+                        <p className="mt-0.5 text-[11px] text-[color:var(--color-muted-foreground)]">
+                          {stage.rateFromSubmitted === null
+                            ? "No submitted data"
+                            : `${stage.rateFromSubmitted}% of submitted`}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-[color:var(--color-primary)]/20 bg-[color:var(--color-primary)]/5 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--color-primary)]">
+                      Funnel signal
+                    </p>
+
+                    <p className="mt-2 font-semibold">
+                      {funnelIntelligence.insight.headline}
+                    </p>
+
+                    <p className="mt-1 text-sm leading-relaxed text-[color:var(--color-muted-foreground)]">
+                      {funnelIntelligence.insight.detail}
+                    </p>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-[color:var(--color-border)] p-4">
+                      <p className="text-xs font-medium text-[color:var(--color-muted-foreground)]">
+                        Interview reach trend
+                      </p>
+
+                      <p className="mt-1 text-lg font-semibold">
+                        {funnelIntelligence.trend.interviewRateChange === null
+                          ? "Not enough data"
+                          : `${funnelIntelligence.trend.interviewRateChange >= 0 ? "+" : ""}${funnelIntelligence.trend.interviewRateChange} pts`}
+                      </p>
+
+                      <p className="mt-1 text-xs text-[color:var(--color-muted-foreground)]">
+                        Last 30 days vs previous 30 days
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-[color:var(--color-border)] p-4">
+                      <p className="text-xs font-medium text-[color:var(--color-muted-foreground)]">
+                        Offer reach trend
+                      </p>
+
+                      <p className="mt-1 text-lg font-semibold">
+                        {funnelIntelligence.trend.offerRateChange === null
+                          ? "Not enough data"
+                          : `${funnelIntelligence.trend.offerRateChange >= 0 ? "+" : ""}${funnelIntelligence.trend.offerRateChange} pts`}
+                      </p>
+
+                      <p className="mt-1 text-xs text-[color:var(--color-muted-foreground)]">
+                        Last 30 days vs previous 30 days
+                      </p>
+                    </div>
                   </div>
                 </div>
 
