@@ -87,10 +87,18 @@ function roleReference(app: Application): string {
     : `the ${role} role`;
 }
 
+function messageGreeting(app: Application): string {
+  const contactName = app.contactName?.trim();
+
+  return contactName
+    ? `Hi ${contactName},`
+    : "Hi,";
+}
+
 function buildApplicationFollowUpMessage(
   app: Application,
 ): string {
-  return `Hi, I wanted to follow up on my application for ${roleReference(
+  return `${messageGreeting(app)} I wanted to follow up on my application for ${roleReference(
     app,
   )}. I’m still very interested in the opportunity and wanted to check whether there are any updates on the process. I’d be happy to provide any additional information that would be helpful. Thank you for your time.`;
 }
@@ -98,7 +106,7 @@ function buildApplicationFollowUpMessage(
 function buildInterviewThankYouMessage(
   app: Application,
 ): string {
-  return `Hi, thank you again for taking the time to speak with me about ${roleReference(
+  return `${messageGreeting(app)} thank you again for taking the time to speak with me about ${roleReference(
     app,
   )}. I appreciated the conversation and the opportunity to learn more about the role. I remain very interested and would be happy to provide any additional information. Thank you again for your time.`;
 }
@@ -106,7 +114,7 @@ function buildInterviewThankYouMessage(
 function buildCaseFollowUpMessage(
   app: Application,
 ): string {
-  return `Hi, I wanted to follow up regarding the case or task I submitted for ${roleReference(
+  return `${messageGreeting(app)} I wanted to follow up regarding the case or task I submitted for ${roleReference(
     app,
   )}. I wanted to check whether there are any updates on the next steps or whether you need anything further from me. Thank you for your time.`;
 }
@@ -114,7 +122,7 @@ function buildCaseFollowUpMessage(
 function buildOfferAcknowledgementMessage(
   app: Application,
 ): string {
-  return `Hi, thank you again for the offer for ${roleReference(
+  return `${messageGreeting(app)} thank you again for the offer for ${roleReference(
     app,
   )}. I really appreciate the opportunity. I’m reviewing the details carefully and will respond within the agreed timeline. Please let me know if there is anything else you would like me to consider in the meantime.`;
 }

@@ -48,6 +48,11 @@ function rowToApplication(row: ApplicationRow): Application {
     jobDescription: row.job_description ?? undefined,
     appliedAt: row.applied_at ?? undefined,
     notes: row.notes ?? undefined,
+    contactName: row.contact_name ?? undefined,
+    contactRole: row.contact_role ?? undefined,
+    contactEmail: row.contact_email ?? undefined,
+    contactLinkedInUrl:
+      row.contact_linkedin_url ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -71,6 +76,11 @@ function inputToInsert(
     job_description: input.jobDescription ?? null,
     applied_at: input.appliedAt ?? null,
     notes: input.notes ?? null,
+    contact_name: input.contactName ?? null,
+    contact_role: input.contactRole ?? null,
+    contact_email: input.contactEmail ?? null,
+    contact_linkedin_url:
+      input.contactLinkedInUrl ?? null,
     source_local_id: sourceLocalId ?? null,
   };
 }
@@ -93,6 +103,19 @@ function patchToUpdate(
     result.job_description = patch.jobDescription ?? null;
   if (patch.appliedAt !== undefined) result.applied_at = patch.appliedAt ?? null;
   if (patch.notes !== undefined) result.notes = patch.notes ?? null;
+
+  if (patch.contactName !== undefined)
+    result.contact_name = patch.contactName ?? null;
+
+  if (patch.contactRole !== undefined)
+    result.contact_role = patch.contactRole ?? null;
+
+  if (patch.contactEmail !== undefined)
+    result.contact_email = patch.contactEmail ?? null;
+
+  if (patch.contactLinkedInUrl !== undefined)
+    result.contact_linkedin_url =
+      patch.contactLinkedInUrl ?? null;
 
   return result;
 }
@@ -140,6 +163,11 @@ export async function migrateGuestApplicationsToCloud(): Promise<Application[]> 
           jobDescription: app.jobDescription,
           appliedAt: app.appliedAt,
           notes: app.notes,
+          contactName: app.contactName,
+          contactRole: app.contactRole,
+          contactEmail: app.contactEmail,
+          contactLinkedInUrl:
+            app.contactLinkedInUrl,
         },
         session.user.id,
         app.id,

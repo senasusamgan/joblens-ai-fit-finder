@@ -107,6 +107,10 @@ export type Database = {
           applied_at: string | null
           application_source: string | null
           company_name: string
+          contact_email: string | null
+          contact_linkedin_url: string | null
+          contact_name: string | null
+          contact_role: string | null
           created_at: string
           id: string
           job_description: string | null
@@ -124,6 +128,10 @@ export type Database = {
           applied_at?: string | null
           application_source?: string | null
           company_name?: string
+          contact_email?: string | null
+          contact_linkedin_url?: string | null
+          contact_name?: string | null
+          contact_role?: string | null
           created_at?: string
           id?: string
           job_description?: string | null
@@ -141,6 +149,10 @@ export type Database = {
           applied_at?: string | null
           application_source?: string | null
           company_name?: string
+          contact_email?: string | null
+          contact_linkedin_url?: string | null
+          contact_name?: string | null
+          contact_role?: string | null
           created_at?: string
           id?: string
           job_description?: string | null
