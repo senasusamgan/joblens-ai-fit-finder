@@ -29,6 +29,10 @@ export const APPLICATION_CSV_COLUMNS = [
   "job_description",
   "applied_at",
   "notes",
+  "contact_name",
+  "contact_role",
+  "contact_email",
+  "contact_linkedin_url",
 ] as const;
 
 export type ApplicationCsvImportRow = {
@@ -71,6 +75,28 @@ const HEADER_ALIASES: Record<
     "date_applied",
   ],
   notes: ["notes", "note"],
+  contact_name: [
+    "contact_name",
+    "recruiter_name",
+    "recruiter",
+    "contact",
+  ],
+  contact_role: [
+    "contact_role",
+    "recruiter_role",
+    "contact_title",
+  ],
+  contact_email: [
+    "contact_email",
+    "recruiter_email",
+    "email",
+  ],
+  contact_linkedin_url: [
+    "contact_linkedin_url",
+    "contact_linkedin",
+    "recruiter_linkedin",
+    "linkedin_profile",
+  ],
 };
 
 function normaliseHeader(value: string): string {
@@ -231,6 +257,10 @@ export function applicationsToCsv(
     application.jobDescription ?? "",
     application.appliedAt ?? "",
     application.notes ?? "",
+    application.contactName ?? "",
+    application.contactRole ?? "",
+    application.contactEmail ?? "",
+    application.contactLinkedInUrl ?? "",
   ]);
 
   return [

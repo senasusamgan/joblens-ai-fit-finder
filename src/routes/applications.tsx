@@ -264,6 +264,10 @@ type FormState = {
   status: ApplicationStatus;
   appliedAt: string;
   notes: string;
+  contactName: string;
+  contactRole: string;
+  contactEmail: string;
+  contactLinkedInUrl: string;
 };
 
 const emptyForm: FormState = {
@@ -274,6 +278,10 @@ const emptyForm: FormState = {
   status: "Saved",
   appliedAt: "",
   notes: "",
+  contactName: "",
+  contactRole: "",
+  contactEmail: "",
+  contactLinkedInUrl: "",
 };
 
 function ApplicationsPage() {
@@ -946,6 +954,11 @@ function ApplicationsPage() {
       status: a.status,
       appliedAt: a.appliedAt ? a.appliedAt.slice(0, 10) : "",
       notes: a.notes ?? "",
+      contactName: a.contactName ?? "",
+      contactRole: a.contactRole ?? "",
+      contactEmail: a.contactEmail ?? "",
+      contactLinkedInUrl:
+        a.contactLinkedInUrl ?? "",
     });
     setFormError(null);
     setDialogOpen(true);
@@ -982,6 +995,14 @@ function ApplicationsPage() {
       status: form.status,
       appliedAt: form.appliedAt || undefined,
       notes: form.notes.trim() || undefined,
+      contactName:
+        form.contactName.trim() || undefined,
+      contactRole:
+        form.contactRole.trim() || undefined,
+      contactEmail:
+        form.contactEmail.trim() || undefined,
+      contactLinkedInUrl:
+        form.contactLinkedInUrl.trim() || undefined,
     };
 
     try {
@@ -2866,6 +2887,98 @@ function ApplicationsPage() {
                 </FormField>
               </div>
 
+              <section className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/20 p-4">
+                <div>
+                  <p className="text-sm font-semibold">
+                    Recruiter / Contact
+                  </p>
+                  <p className="mt-1 text-xs text-[color:var(--color-muted-foreground)]">
+                    Optional contact details for this application.
+                  </p>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <FormField
+                    id="f-contact-name"
+                    label="Contact name"
+                    hint="Optional"
+                  >
+                    <input
+                      id="f-contact-name"
+                      className="jl-input"
+                      value={form.contactName}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          contactName: e.target.value,
+                        })
+                      }
+                      placeholder="e.g. Jane Doe"
+                    />
+                  </FormField>
+
+                  <FormField
+                    id="f-contact-role"
+                    label="Contact role"
+                    hint="Optional"
+                  >
+                    <input
+                      id="f-contact-role"
+                      className="jl-input"
+                      value={form.contactRole}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          contactRole: e.target.value,
+                        })
+                      }
+                      placeholder="e.g. Talent Acquisition Partner"
+                    />
+                  </FormField>
+
+                  <FormField
+                    id="f-contact-email"
+                    label="Contact email"
+                    hint="Optional"
+                  >
+                    <input
+                      id="f-contact-email"
+                      type="email"
+                      autoComplete="email"
+                      className="jl-input"
+                      value={form.contactEmail}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          contactEmail: e.target.value,
+                        })
+                      }
+                      placeholder="jane@company.com"
+                    />
+                  </FormField>
+
+                  <FormField
+                    id="f-contact-linkedin"
+                    label="LinkedIn profile"
+                    hint="Optional"
+                  >
+                    <input
+                      id="f-contact-linkedin"
+                      type="url"
+                      className="jl-input"
+                      value={form.contactLinkedInUrl}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          contactLinkedInUrl: e.target.value,
+                        })
+                      }
+                      placeholder="https://linkedin.com/in/..."
+                    />
+                  </FormField>
+                </div>
+              </section>
+
               <FormField id="f-notes" label="Notes" hint="Optional">
                 <textarea
                   id="f-notes"
@@ -3001,6 +3114,70 @@ function AppCard({
 
       {app.notes && (
         <p className="mt-2 line-clamp-2 text-xs text-[color:var(--color-muted-foreground)]">{app.notes}</p>
+      )}
+
+      {(app.contactName ||
+        app.contactRole ||
+        app.contactEmail ||
+        app.contactLinkedInUrl) && (
+        <div className="mt-3 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/35 p-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--color-muted-foreground)]">
+            Primary contact
+          </p>
+
+          {app.contactName && (
+            <p className="mt-1 truncate text-xs font-semibold">
+              {app.contactName}
+            </p>
+          )}
+
+          {app.contactRole && (
+            <p className="mt-0.5 line-clamp-2 text-[11px] text-[color:var(--color-muted-foreground)]">
+              {app.contactRole}
+            </p>
+          )}
+
+          {(app.contactEmail ||
+            (app.contactLinkedInUrl &&
+              /^https?:\/\//i.test(
+                app.contactLinkedInUrl,
+              ))) && (
+            <div className="mt-2 flex gap-1.5">
+              {app.contactEmail && (
+                <a
+                  href={`mailto:${app.contactEmail}`}
+                  title={`Email ${app.contactName || "contact"}`}
+                  aria-label={`Email ${app.contactName || "application contact"}`}
+                  className="inline-flex h-7 flex-1 items-center justify-center rounded-lg border border-[color:var(--color-border)] text-[color:var(--color-muted-foreground)] transition hover:bg-white"
+                >
+                  <Mail
+                    className="h-3.5 w-3.5"
+                    aria-hidden
+                  />
+                </a>
+              )}
+
+              {app.contactLinkedInUrl &&
+                /^https?:\/\//i.test(
+                  app.contactLinkedInUrl,
+                ) && (
+                  <a
+                    href={app.contactLinkedInUrl}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    title={`Open ${app.contactName || "contact"} on LinkedIn`}
+                    aria-label={`Open ${app.contactName || "application contact"} on LinkedIn`}
+                    className="inline-flex h-7 flex-1 items-center justify-center rounded-lg border border-[color:var(--color-border)] text-[color:var(--color-muted-foreground)] transition hover:bg-white"
+                  >
+                    <ExternalLink
+                      className="h-3.5 w-3.5"
+                      aria-hidden
+                    />
+                  </a>
+                )}
+            </div>
+          )}
+        </div>
       )}
 
       <p className="mt-2 text-[11px] text-[color:var(--color-muted-foreground)]">

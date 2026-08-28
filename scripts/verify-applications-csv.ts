@@ -20,6 +20,11 @@ const csv = applicationsToCsv([
       'Build products, analyse feedback, and say "why".',
     appliedAt: "2026-08-20T09:00:00.000Z",
     notes: "Follow up next week.\nRecruiter: Jane",
+    contactName: "Jane Doe",
+    contactRole: "Talent Acquisition Partner",
+    contactEmail: "jane@example.com",
+    contactLinkedInUrl:
+      "https://www.linkedin.com/in/jane-doe",
     createdAt: "2026-08-20T09:00:00.000Z",
     updatedAt: "2026-08-20T09:00:00.000Z",
   },
@@ -49,6 +54,26 @@ assert.equal(
 assert.equal(
   parsed.rows[0].input.applicationSource,
   "LinkedIn",
+);
+
+assert.equal(
+  parsed.rows[0].input.contactName,
+  "Jane Doe",
+);
+
+assert.equal(
+  parsed.rows[0].input.contactRole,
+  "Talent Acquisition Partner",
+);
+
+assert.equal(
+  parsed.rows[0].input.contactEmail,
+  "jane@example.com",
+);
+
+assert.equal(
+  parsed.rows[0].input.contactLinkedInUrl,
+  "https://www.linkedin.com/in/jane-doe",
 );
 
 const aliases = parseApplicationsCsv(

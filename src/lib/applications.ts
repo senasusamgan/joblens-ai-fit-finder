@@ -34,6 +34,10 @@ export interface Application {
   jobDescription?: string;
   appliedAt?: string;
   notes?: string;
+  contactName?: string;
+  contactRole?: string;
+  contactEmail?: string;
+  contactLinkedInUrl?: string;
   createdAt: string;
   updatedAt: string;
 }
