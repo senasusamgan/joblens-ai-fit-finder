@@ -439,6 +439,30 @@ export function parseApplicationsCsv(
         notes:
           readCell(record, headers, "notes") ||
           undefined,
+        contactName:
+          readCell(
+            record,
+            headers,
+            "contact_name",
+          ) || undefined,
+        contactRole:
+          readCell(
+            record,
+            headers,
+            "contact_role",
+          ) || undefined,
+        contactEmail:
+          readCell(
+            record,
+            headers,
+            "contact_email",
+          ) || undefined,
+        contactLinkedInUrl:
+          readCell(
+            record,
+            headers,
+            "contact_linkedin_url",
+          ) || undefined,
       },
     });
   });
